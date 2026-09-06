@@ -25,9 +25,9 @@ The `ranking-server` directory contains an Express + PostgreSQL API. The root
 1. Push this repository to GitHub.
 2. In Render, choose **New → Blueprint** and select the repository. Render reads
    the root `render.yaml` and uses `ranking-server` as the service root.
-3. Create a Render Postgres database in the same region as the Web Service.
-4. Set the Web Service environment variables:
-   - `DATABASE_URL`: the database Internal Database URL
+3. The Blueprint creates `crazycombat-db` and injects its internal connection
+   string into `DATABASE_URL` automatically.
+4. Set the Web Service environment variable:
    - `CORS_ORIGINS`: the HTTPS origin where the game is hosted, for example
      `https://YOUR-GITHUB-NAME.github.io`
 5. Deploy the service and verify `/healthz`.
@@ -37,6 +37,10 @@ The `ranking-server` directory contains an Express + PostgreSQL API. The root
 
 The API provides `GET /api/ranking` and `POST /api/ranking`. Scores are validated
 for stages 1–1000 and stored in PostgreSQL.
+
+The Blueprint currently uses Render's Free Postgres plan for initial testing.
+Render documents that Free Postgres databases expire after 30 days, so upgrade
+the database to a paid plan for a permanent leaderboard.
 
 ## Important security note
 

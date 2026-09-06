@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: crazycombat-ranking
+    name: crazycombat
     runtime: node
     rootDir: ranking-server
     buildCommand: npm install
@@ -10,6 +10,14 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: crazycombat-db
+          property: connectionString
       - key: CORS_ORIGINS
         sync: false
+
+databases:
+  - name: crazycombat-db
+    databaseName: crazycombat
+    user: crazycombat
+    plan: free
