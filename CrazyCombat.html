@@ -116,9 +116,9 @@
     weapons: [
       { count: 1, interval: .25, damage: 10, spread: 0 },
       { count: 2, interval: .25, damage: 10, spread: 0 },
-      { count: 2, interval: .22, damage: 12, spread: 0 },
-      { count: 3, interval: .22, damage: 12, spread: .105 },
-      { count: 3, interval: .20, damage: 15, spread: .105 }
+      { count: 3, interval: .22, damage: 12, spread: .075 },
+      { count: 4, interval: .22, damage: 12, spread: .105 },
+      { count: 5, interval: .20, damage: 15, spread: .12 }
     ],
     enemies: {
       scout: { hp: 10, speed: 3, score: 100, radius: 16, drop: .35 },
@@ -136,12 +136,12 @@
       { from: 40, interval: .48, speed: 1.32, weights: [20, 17.5, 17.5, 30, 15] }
     ],
     drops: [
-      { type: 'coin1', weight: 43 }, { type: 'coin2', weight: 20 },
-      { type: 'coin4', weight: 8 }, { type: 'power', weight: 18 },
-      { type: 'hp', weight: 5 }, { type: 'magnet', weight: 4 }, { type: 'shield', weight: 2 }
+      { type: 'coin1', weight: 34 }, { type: 'coin2', weight: 16 },
+      { type: 'coin4', weight: 7 }, { type: 'power', weight: 30 },
+      { type: 'hp', weight: 6 }, { type: 'magnet', weight: 4 }, { type: 'shield', weight: 3 }
     ],
     boss: { hp: 1200, score: 3000, radius: 65, aimedWarning: .45, aimedSpacing: .18, sweepWarning: .6 },
-    specialMissile: { maxKi: 100, damage: 360, blastRadius: 180, chargePerSecond: 48 },
+    specialMissile: { maxKi: 100, damage: 360, blastRadius: 180, hitRadius: 30, speed: 360, chargePerSecond: 48 },
     score: { survivalBonus: 1000, hpBonus: 300, cap: 999999, totalCap: 999999999, comboSeconds: 2 },
     ships: [
       { id: 'falcon', name: 'FALCON', code: 'F-01', price: 0, color: '#ff965e' },
@@ -354,7 +354,7 @@
   'use strict';
   const en = {
      division:'ARCADE FLIGHT DIVISION', local:'LOCAL SAVE', memory:'SESSION ONLY', subtitle:'No clock. Make every stage count.',
-     intro:'Hold Q to charge KI, release it to fire the special missile, and destroy the boss.', launch:'LAUNCH MISSION', ready:'READY FOR TAKEOFF', mission:'DAILY MISSIONS', campaign:'1,000-STAGE CAMPAIGN', stage:'STAGE', stages:'STAGES', currentStage:'CURRENT STAGE', overallScore:'OVERALL SCORE', overallRank:'OVERALL RANK',
+     intro:'Hold Q to charge KI, release it to fire a straight special missile, and destroy the boss.', launch:'LAUNCH MISSION', ready:'READY FOR TAKEOFF', mission:'DAILY MISSIONS', campaign:'1,000-STAGE CAMPAIGN', stage:'STAGE', stages:'STAGES', currentStage:'CURRENT STAGE', overallScore:'OVERALL SCORE', overallRank:'OVERALL RANK',
     localDate:'Resets at local midnight', claim:'CLAIM', claimed:'CLAIMED', reward:'REWARD', best:'PERSONAL BEST', bestNote:'Your next flight could be your best.',
     hangar:'HANGAR', records:'FLIGHT RECORDS', settings:'SETTINGS', equipped:'EQUIPPED', equip:'EQUIP SHIP', owned:'OWNED', unlock:'UNLOCK', locked:'LOCKED',
     chooseShip:'Choose your signature.', cosmetic:'Different silhouettes. The same firepower. All ships have identical stats.',
@@ -381,7 +381,7 @@
      rules:'MISSION BRIEFING', rule1:'There is no time limit. Defeat the boss to clear the stage.',
      rule2:'Clear the stage to unlock the next one. There are 1,000 stages, and every stage gets harder.',
     rule3:'Your shield lasts 3 seconds and recharges every 20 seconds.',
-     rule4:'Chain kills within 2 seconds to build a combo up to ×2. Taking a hit halves your combo.', rule5:'Hold Q to charge KI. When full, release Q to launch a homing special missile at nearby targets.',
+     rule4:'Chain kills within 2 seconds to build a combo up to ×2. Taking a hit halves your combo.', rule5:'Hold Q to charge KI. When full, release Q to launch a straight special missile from your current position.',
     items:'SUPPLY CATALOG', powerItem:'Weapon level +1', hpItem:'Restore 1 hull point', magnetItem:'Attract coin stars for 5 seconds', shieldItem:'3 seconds of protection',
     starsItem:'Stars: 1 / 2 / 4 coins, plus 10 points per coin',
     t1:'Move your ship', t1b:'Drag the playfield or use Arrow keys / WASD.', t2:'Let it fire', t2b:'Line up with the target. Your weapons fire automatically.',
@@ -926,18 +926,17 @@
     }
     fireSpecial(){
       if(this.p.ki<C.specialMissile.maxKi)return false;
-      const missile=this.pools.specials.take({x:this.p.x,y:this.p.y-32,vx:0,vy:-300,age:0});
+      const missile=this.pools.specials.take({x:this.p.x,y:this.p.y-32,vx:0,vy:-C.specialMissile.speed,age:0});
       if(!missile)return false;
       this.p.ki=0;this.stats.specialMissiles++;this.message('kiFull',1.5);this.audio.sfx('special');this.burst(this.p.x,this.p.y,'#8ff6ef',16,120);return true;
     }
     updateSpecials(dt){
       for(const m of this.pools.specials.items){
         if(!m.active)continue;m.age+=dt;
-        const candidates=this.pools.enemies.items.filter(e=>e.active),boss=this.boss?.active?this.boss:null;
-        let target=boss||candidates.sort((a,b)=>Math.abs(a.y-m.y)-Math.abs(b.y-m.y))[0];
-        if(target){const dx=target.x-m.x;m.vx+=K.clamp(dx,-240,240)*dt*2.2;m.vx=K.clamp(m.vx,-260,260);}
         m.x+=m.vx*dt;m.y+=m.vy*dt;
-        if((target&&hit(m,target,24))||m.y<105){m.active=false;this.specialBlast(m.x,m.y);}
+        const enemy=this.pools.enemies.items.find(e=>e.active&&hit(m,e,C.specialMissile.hitRadius+e.r));
+        const boss=this.boss?.active&&hit(m,this.boss,C.specialMissile.hitRadius+this.boss.r)?this.boss:null;
+        if(enemy||boss||m.y<105){m.active=false;this.specialBlast(m.x,m.y);}
       }
     }
     specialBlast(x,y){
@@ -1029,8 +1028,8 @@
         A.line(c,[[bullet.x,bullet.y+8],[bullet.x,bullet.y-4]],'#f6ffff',1.1);
       }
       for(const missile of this.pools.specials.items)if(missile.active){
-        A.glow(c,missile.x,missile.y,28,'#79f5e466');A.line(c,[[missile.x,missile.y+25],[missile.x,missile.y-22]],'#a8fff4',7);A.line(c,[[missile.x,missile.y+18],[missile.x,missile.y-26]],'#ffffff',2);
-        c.fillStyle='#9af8ed';c.beginPath();c.moveTo(missile.x,missile.y-32);c.lineTo(missile.x-8,missile.y-16);c.lineTo(missile.x+8,missile.y-16);c.closePath();c.fill();
+        A.glow(c,missile.x,missile.y,42,'#79f5e477');A.line(c,[[missile.x,missile.y+34],[missile.x,missile.y-29]],'#a8fff4',11);A.line(c,[[missile.x,missile.y+26],[missile.x,missile.y-35]],'#ffffff',3);
+        c.fillStyle='#9af8ed';c.beginPath();c.moveTo(missile.x,missile.y-43);c.lineTo(missile.x-13,missile.y-22);c.lineTo(missile.x+13,missile.y-22);c.closePath();c.fill();
       }
       for(const e of this.pools.enemies.items)if(e.active)A.enemy(c,e,this.visualTime);
       if(b?.active)A.boss(c,b,this.visualTime);
