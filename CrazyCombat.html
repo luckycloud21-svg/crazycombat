@@ -54,6 +54,19 @@
 <style>
   .stat-bars i{background:#2c4555}
   .stat-bars i.active{background:#6d98a1}
+  :root{--text:#f7f4eb;--muted:#afc1cc;--line:#345060;--line-soft:#294151}
+  body{font-size:15px;line-height:1.6;text-rendering:optimizeLegibility}
+  .eyebrow,.micro{font-size:11px;letter-spacing:1.5px;color:#b4c7d1}
+  .section-label h2{font-size:14px}.section-label small,.daily-note,.mission-number{font-size:11px;color:#a8bdc8}
+  .mission-name{font-size:13px}.hero-description,.page-heading p,.ship-card p{font-size:13px;color:#b3c5cf}
+  .ship-type,.ship-stat>span,.record-ship,.record-date,.flight-path span{font-size:11px;color:#a8bdc8}
+  .record-panel p{font-size:11px;color:#a8bdc8}.record-score{font-size:22px}.footer{font-size:10px;color:#8da6b5}
+  .global-panel-head h2{font-size:14px}.global-panel-head small,.global-status{font-size:11px}.global-row{font-size:13px}.global-row .global-stage,.global-row .global-stage small{font-size:11px}.global-row .global-score{font-size:19px}
+  .hud .micro{font-size:10px;color:#aec5cf}.stage-hud span,.ki-head span{font-size:10px}.stage-hud strong,.ki-head strong{font-size:10px}
+  .field-footer>span,.field-footer small{font-size:9px}.flight-aside>p,.aside-tip{font-size:12px;color:#a5bbc7}.aside-control>span,.aside-stat>span{font-size:10px;color:#9fb8c5}
+  .modal-card>p,.manual-section p,.manual-rule{font-size:13px;color:#b5c8d1}.control-line,.item-line{font-size:12px}.settings-note{font-size:11px;color:#a7bdc8}.setting-row{font-size:13px}
+  .score-breakdown{grid-template-columns:repeat(5,1fr)}.score-breakdown span,.result-stats span{font-size:9px}.result-details{font-size:10px}.result-card .result-note{font-size:10px}
+  @media(max-width:680px){body{font-size:14px}.hero-description,.page-heading p,.ship-card p{font-size:12px}.score-breakdown{grid-template-columns:repeat(3,1fr);row-gap:13px}.global-row .global-score{font-size:18px}}
 </style>
 </head>
 <body>
@@ -104,7 +117,7 @@
         <aside id="right-flight-panel" class="flight-aside"></aside>
       </div>
     </section>
-    <footer id="footer" class="footer"><span id="footer-edition">HTML5 EDITION · v1.9.0</span><span id="footer-note">NO ADS. NO PAID STAT BOOSTS.</span><button data-action="privacy" class="text-button" id="footer-privacy">DATA & CREDITS</button></footer>
+    <footer id="footer" class="footer"><span id="footer-edition">HTML5 EDITION · v1.10.0</span><span id="footer-note">NO ADS. NO PAID STAT BOOSTS.</span><button data-action="privacy" class="text-button" id="footer-privacy">DATA & CREDITS</button></footer>
   </div>
   <div id="modal-root" class="modal-root hidden"></div>
   <div id="toast" class="toast hidden" role="status"></div>
@@ -154,7 +167,7 @@
     ],
     boss: { hp: 1200, score: 3000, radius: 65, aimedWarning: .45, aimedSpacing: .18, sweepWarning: .6 },
     specialMissile: { maxKi: 100, damage: 360, blastRadius: 180, hitRadius: 30, speed: 360, chargePerSecond: 48 },
-    score: { survivalBonus: 1000, hpBonus: 300, cap: 999999, totalCap: 999999999999999, comboSeconds: 2 },
+    score: { survivalBonus: 1000, hpBonus: 300, timeBonus: 1800, timeBonusWindow: 75, cap: 999999, totalCap: 999999999999999, comboSeconds: 2 },
     ships: [
       // Weapon profiles make each airframe feel different in flight. Primary
       // damage/size and special blast radius increase with the ship tier.
@@ -297,7 +310,7 @@
     if (raw.schemaVersion !== undefined && raw.schemaVersion > 3) throw new Error('SAVE-VERSION-UNSUPPORTED');
     const p = defaults(language, day);
     if (typeof raw.playerId === 'string' && /^[A-Za-z0-9._:-]{8,80}$/.test(raw.playerId.trim())) p.playerId = raw.playerId.trim();
-    p.bestScore = int(raw.bestScore ?? raw.highScore, C.score.cap);
+    const savedBestScore = int(raw.bestScore ?? raw.highScore, C.score.cap);
     p.overallScore = int(raw.overallScore ?? raw.totalScore, C.score.totalCap);
     p.campaignScore = int(raw.campaignScore ?? raw.overallScore ?? raw.totalScore, C.score.totalCap);
     p.currentStage = clamp(int(raw.currentStage ?? raw.stage, C.totalStages) || 1, 1, C.totalStages);
@@ -322,12 +335,15 @@
         return m;
       });
     }
-    if (Array.isArray(raw.records)) p.records = raw.records.filter(r => isObj(r) && typeof r.runId === 'string' && r.runId.length <= 100).slice(0, 100).map(r => ({
+    if (Array.isArray(raw.records)) p.records = raw.records.filter(r => isObj(r) && typeof r.runId === 'string' && r.runId.length <= 100).map(r => ({
       runId: r.runId, score: int(r.score,C.score.cap), kills: int(r.kills,500), maxCombo: int(r.maxCombo,500), coins: int(r.coins,10000),
       stage: clamp(int(r.stage, C.totalStages) || 1, 1, C.totalStages), bossKilled: r.bossKilled === true, duration: clamp(Number(r.duration)||0,0,3600), planeId: ids.has(r.planeId) ? r.planeId : 'falcon',
       endedAt: typeof r.endedAt === 'string' && !isNaN(Date.parse(r.endedAt)) ? new Date(r.endedAt).toISOString() : new Date().toISOString()
     })).sort((a,b) => b.score-a.score).slice(0,100);
-    if (p.records.length) p.bestScore = Math.max(p.bestScore,p.records[0].score);
+    // Rebuild the personal best from actual flight records. Older builds could
+    // put a campaign total in bestScore, which made the displayed high score
+    // larger than any individual flight.
+    p.bestScore = p.records.length ? p.records[0].score : savedBestScore;
     if (Array.isArray(raw.processedRuns)) p.processedRuns = raw.processedRuns.filter(s => typeof s === 'string' && s.length <= 100).slice(-100);
     if (isObj(raw.totals)) for (const k of Object.keys(p.totals)) p.totals[k] = int(raw.totals[k], k === 'score' ? C.score.totalCap : k === 'maxStage' ? C.totalStages : undefined);
     const recordedScore = p.records.reduce((sum, record) => sum + record.score, 0);
@@ -339,11 +355,13 @@
     if (p.dailyMission.dateKey !== day) { p.dailyMission = { dateKey: day, missions: makeMissions(day) }; return true; }
     return false;
   }
-  function finalScore(stats, reason, hp, maxHp = C.player.maxHp || 3) {
+  function finalScore(stats, reason, hp, maxHp = C.player.maxHp || 3, duration = 0) {
     const combat = int(stats.combatScore, C.score.cap), coins = int(stats.coinScore, C.score.cap);
     const survival = reason === 'clear' ? C.score.survivalBonus : 0;
+    const elapsed = Math.max(0, Number(duration) || 0);
+    const time = reason === 'clear' ? Math.max(0, Math.round(C.score.timeBonus * (1 - Math.min(1, elapsed / C.score.timeBonusWindow)))) : 0;
     const health = int(hp,maxHp) * C.score.hpBonus;
-    return { combat, coins, survival, health, total: Math.min(C.score.cap, combat+coins+survival+health) };
+    return { combat, coins, survival, time, health, total: Math.min(C.score.cap, combat+coins+survival+time+health) };
   }
   function applyRun(p, r, day = dateKey()) {
     if (!r || !['clear','dead'].includes(r.reason) || typeof r.runId !== 'string' || p.processedRuns.includes(r.runId)) return false;
@@ -464,7 +482,7 @@
     abortTitle:'Abandon this flight?', abortBody:'This unfinished run will not earn coins, a record, or mission progress.', abandon:'ABANDON', cancel:'CANCEL',
     restartTitle:'Start a new flight?', restartBody:'This unfinished run will be discarded. Your saved progress is safe.',
      bossWarning:'BOSS INBOUND', bossName:'DREADNOUGHT', bossDown:'BOSS DESTROYED', enrage:'OVERDRIVE', aim:'TARGET LOCK', radial:'RADIAL BURST', sweep:'SWEEP', kiFull:'KI FULL — RELEASE Q', stageClear:'STAGE CLEAR', finalStage:'FINAL STAGE', nextStage:'NEXT STAGE',
-    survival:'SURVIVAL BONUS', hullBonus:'HULL BONUS', combatScore:'COMBAT', starScore:'STARS', complete:'MISSION COMPLETE', lost:'SIGNAL LOST',
+    survival:'SURVIVAL BONUS', timeBonus:'TIME BONUS', hullBonus:'HULL BONUS', combatScore:'COMBAT', starScore:'STARS', complete:'MISSION COMPLETE', lost:'SIGNAL LOST',
      completeSub:'Boss down. The next stage is unlocked.', lostSub:'Regroup. Reload. Go again.', newBest:'NEW PERSONAL BEST', finalScore:'FINAL SCORE',
     maxCombo:'MAX COMBO', earned:'COINS EARNED', survived:'FLIGHT TIME', defeated:'DESTROYED', escaped:'NOT DESTROYED', retry:'FLY AGAIN',
      coinsSaved:'Coins already added to your balance.', noAds:'No ads. No paid stat boosts.', localOnly:'Settings and offline records stay on this browser.', rankingLocal:'LOCAL OVERALL RANKING', rankRuns:'Ranked by stage score across all of your runs.',
@@ -492,7 +510,7 @@
     fullscreen:'FULLSCREEN', fullscreenUnavailable:'Fullscreen is unavailable here. Use the host’s fullscreen button.', mute:'TOGGLE SOUND',
     saveRecovered:'A damaged save was recovered. Check your progress and keep an exported backup.', saveUnavailable:'Browser storage is unavailable. Progress lasts only for this session; export a save to keep it.',
     lowEffects:'Reduced effects enabled for smoother play.', close:'CLOSE', rotate:'Rotate for takeoff.', rotateDesc:'This flight uses a portrait playfield. Turn your phone upright to continue.',
-     version:'HTML5 EDITION · v1.9.0', threat:'THREAT LEVEL', countdownBoss:'BOSS AT 00:50', endpoint:'DEFEAT THE BOSS',
+     version:'HTML5 EDITION · v1.10.0', threat:'THREAT LEVEL', countdownBoss:'BOSS AT 00:50', endpoint:'DEFEAT THE BOSS',
     supply:'SUPPLY INBOUND', hpFull:'FULL HULL · +2', powerFull:'MAX POWER · +4', magnet:'MAGNET', secured:'SECTOR SECURED',
     play_1:'Complete 1 flight', kill_50:'Destroy 50 enemies', kill_100:'Destroy 100 enemies', combo_15:'Reach a 15-kill combo',
     power_5:'Reach POWER level 5', survive_60:'Survive a full 60 seconds', boss_kill:'Destroy the boss', shield_2:'Use 2 shields in one flight', coin_40:'Collect 40 coins in one flight',
@@ -524,7 +542,7 @@
     abortTitle:'이번 비행을 중단할까요?', abortBody:'완료하지 않은 전투의 코인, 점수, 미션 진행은 저장되지 않아요.', abandon:'중단하기', cancel:'취소',
     restartTitle:'새로운 비행을 시작할까요?', restartBody:'현재 전투는 취소돼요. 이전에 저장된 기록은 유지돼요.',
      bossWarning:'보스 접근 중', bossName:'드레드노트', bossDown:'보스 격파', enrage:'분노 상태', aim:'조준 사격', radial:'방사 탄막', sweep:'좌우 스윕', kiFull:'기 MAX — Q를 떼세요', stageClear:'스테이지 클리어', finalStage:'최종 스테이지', nextStage:'다음 스테이지',
-    survival:'생존 보너스', hullBonus:'체력 보너스', combatScore:'처치 점수', starScore:'별 점수', complete:'임무 완료', lost:'비행 종료',
+    survival:'생존 보너스', timeBonus:'시간 보너스', hullBonus:'체력 보너스', combatScore:'처치 점수', starScore:'별 점수', complete:'임무 완료', lost:'비행 종료',
      completeSub:'보스를 격파했어요. 다음 스테이지가 열렸어요.', lostSub:'다시 정비하고, 더 멀리 날아보세요.', newBest:'최고 기록 갱신', finalScore:'최종 점수',
     maxCombo:'최대 콤보', earned:'획득 코인', survived:'비행 시간', defeated:'격파 성공', escaped:'미격파', retry:'다시 도전',
      coinsSaved:'획득 코인이 잔액에 반영됐어요.', noAds:'광고 없음 · 유료 능력치 없음', localOnly:'이 브라우저에만 저장돼요.', rankingLocal:'로컬 종합 랭킹', rankRuns:'모든 전투 기록을 스테이지 점수순으로 정렬해요.',
@@ -552,7 +570,7 @@
     fullscreen:'전체 화면', fullscreenUnavailable:'여기서는 전체 화면을 사용할 수 없어요. itch.io의 전체 화면 버튼을 이용하세요.', mute:'소리 전환',
     saveRecovered:'손상된 저장 정보를 복구했어요. 기록을 확인하고 파일로 백업해 두세요.', saveUnavailable:'브라우저 저장소를 사용할 수 없어요. 이 세션에서만 유지되니 저장 파일을 내보내세요.',
     lowEffects:'원활한 플레이를 위해 효과를 줄였어요.', close:'닫기', rotate:'화면을 세로로 돌려주세요.', rotateDesc:'세로형 전투 화면이에요. 휴대폰을 세워 계속 플레이하세요.',
-     version:'HTML5 에디션 · v1.9.0', threat:'위험 단계', countdownBoss:'보스 00:50', endpoint:'보스 격파',
+     version:'HTML5 에디션 · v1.10.0', threat:'위험 단계', countdownBoss:'보스 00:50', endpoint:'보스 격파',
     supply:'보급 접근', hpFull:'최대 체력 · +2', powerFull:'최대 파워 · +4', magnet:'자석', secured:'구간 확보',
     play_1:'전투 1회 완료', kill_50:'일반 적 50기 처치', kill_100:'일반 적 100기 처치', combo_15:'15 콤보 달성',
     power_5:'POWER 5단계 달성', survive_60:'60초 동안 생존', boss_kill:'보스 1기 격파', shield_2:'한 전투에서 쉴드 2회 사용', coin_40:'한 전투에서 코인 40개 획득',
@@ -1102,7 +1120,7 @@
     }
     finish(reason){
       if(this.state!=='playing'||this.finished)return false;
-      this.finished=true;const breakdown=K.finalScore(this.stats,reason,this.p.hp,this.p.maxHp);
+      this.finished=true;const breakdown=K.finalScore(this.stats,reason,this.p.hp,this.p.maxHp,this.elapsed);
       this.result={runId:this.runId,reason,stage:this.stage,cleared:reason==='clear',score:breakdown.total,breakdown,coins:this.stats.coins,kills:this.stats.kills,specialMissiles:this.stats.specialMissiles,killsByType:{...this.stats.killsByType},maxCombo:this.stats.maxCombo,power:this.p.power,
         maxPower:this.stats.maxPower,shieldUses:this.stats.shieldUses,bossKilled:this.stats.bossKilled,hp:this.p.hp,duration:this.elapsed,planeId:this.planeId,
         startedAt:this.startedAt,endedAt:new Date().toISOString(),configVersion:C.configVersion};
@@ -1438,6 +1456,13 @@
     store.transaction(p=>{p.currentStage=1;p.currentPower=1;p.campaignScore=0;return true;});
     syncSettings();renderHeader();enterFlight(false,true);
   }
+  function retryFlight(){
+    const modal=topModal(),result=modal?.type==='result'?modal.result:engine.result;
+    // A cleared stage advances normally; a failed flight is a fresh attempt
+    // from stage 1 with a zero campaign score.
+    if(result?.cleared){enterFlight(false,true);return;}
+    startNewCampaign();
+  }
   function enterFlight(training=false,after=true){
     if(['playing','countdown','tutorial','resuming'].includes(engine.state))return;
     clearModals();audio.unlock();syncSettings();showView('flight');tutorialAfter=after;lastHud={};
@@ -1500,7 +1525,7 @@
   }
   function resultHTML(m){
     const r=m.result,b=r.breakdown;
-     return `<div class="result-emblem">${icon(r.cleared?'trophy':'plane')}</div><div class="eyebrow">${t('finalScore')} / ${r.duration.toFixed(1)}s</div><h2 id="modal-title">${t(r.cleared?'complete':'lost')}</h2><p>${t(r.cleared?'completeSub':'lostSub')}</p><div class="result-stage"><span>${t('stage')} <b>${String(r.stage||1).padStart(3,'0')} / ${C.totalStages}</b></span>${r.cleared?`<span>→ ${r.stage>=C.totalStages?t('finalStage'):`${t('nextStage')} ${String(Math.min(C.totalStages,r.stage+1)).padStart(3,'0')}`}</span>`:''}</div><div id="result-score" class="result-score">${number(r.score)}</div><div class="micro">${t('overallScore')} / ${number(P().overallScore)}</div>${m.isBest?`<span class="new-best">${icon('trophy')}${t('newBest')}</span>`:`<span class="micro">${t('best')} / ${number(P().bestScore)}</span>`}<div class="score-breakdown">${[['combatScore',b.combat],['starScore',b.coins],['survival',b.survival],['hullBonus',b.health]].map(([k,n])=>`<div><span>${t(k)}</span><strong>${number(n)}</strong></div>`).join('')}</div><div class="result-stats"><div><span>${t('kills')}</span><strong>${r.kills}</strong></div><div><span>${t('maxCombo')}</span><strong>${r.maxCombo}</strong></div><div><span>${t('earned')}</span><strong class="gold">+${r.coins}</strong></div></div><div class="result-details"><span>BOSS / <b>${t(r.bossKilled?'defeated':'escaped')}</b></span><span>${t('specialMissile')} / <b>${r.specialMissiles||0}</b></span><span>POWER / <b>${r.maxPower} / 5</b></span></div><div class="stacked-actions"><button class="primary-button" data-action="retry">${r.cleared?t('nextStage'):t('retry')}${icon('arrow')}</button><div class="result-secondary"><button class="secondary-button" data-action="home">${t('returnLobby')}</button><button class="secondary-button" data-action="records">${t('records')}</button></div></div><p class="result-note">${t('coinsSaved')} ${t('localOnly')}</p>`;
+     return `<div class="result-emblem">${icon(r.cleared?'trophy':'plane')}</div><div class="eyebrow">${t('finalScore')} / ${r.duration.toFixed(1)}s</div><h2 id="modal-title">${t(r.cleared?'complete':'lost')}</h2><p>${t(r.cleared?'completeSub':'lostSub')}</p><div class="result-stage"><span>${t('stage')} <b>${String(r.stage||1).padStart(3,'0')} / ${C.totalStages}</b></span>${r.cleared?`<span>→ ${r.stage>=C.totalStages?t('finalStage'):`${t('nextStage')} ${String(Math.min(C.totalStages,r.stage+1)).padStart(3,'0')}`}</span>`:''}</div><div id="result-score" class="result-score">${number(r.score)}</div><div class="micro">${t('overallScore')} / ${number(P().overallScore)}</div>${m.isBest?`<span class="new-best">${icon('trophy')}${t('newBest')}</span>`:`<span class="micro">${t('best')} / ${number(P().bestScore)}</span>`}<div class="score-breakdown">${[['combatScore',b.combat],['starScore',b.coins],['timeBonus',b.time],['survival',b.survival],['hullBonus',b.health]].map(([k,n])=>`<div><span>${t(k)}</span><strong>${number(n)}</strong></div>`).join('')}</div><div class="result-stats"><div><span>${t('kills')}</span><strong>${r.kills}</strong></div><div><span>${t('maxCombo')}</span><strong>${r.maxCombo}</strong></div><div><span>${t('earned')}</span><strong class="gold">+${r.coins}</strong></div></div><div class="result-details"><span>BOSS / <b>${t(r.bossKilled?'defeated':'escaped')}</b></span><span>${t('specialMissile')} / <b>${r.specialMissiles||0}</b></span><span>POWER / <b>${r.maxPower} / 5</b></span></div><div class="stacked-actions"><button class="primary-button" data-action="retry">${r.cleared?t('nextStage'):t('retry')}${icon('arrow')}</button><div class="result-secondary"><button class="secondary-button" data-action="home">${t('returnLobby')}</button><button class="secondary-button" data-action="records">${t('records')}</button></div></div><p class="result-note">${t('coinsSaved')} ${t('localOnly')}</p>`;
   }
   function renderModal(){
     const m=topModal();if(!m)return clearModals();
@@ -1519,9 +1544,7 @@
     $('modal-root').innerHTML=`<div class="modal-card ${classes}" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1">${dismissible?`<button class="modal-close" data-action="close-modal" aria-label="${t('close')}">${icon('close')}</button>`:''}${html}</div>`;
     if(m.type==='result'){
       const total=$('result-score');
-      if(total)total.textContent=number(P().campaignScore);
-      const label=$('modal-root').querySelector('.result-card > .eyebrow');
-      if(label)label.textContent=`${t('campaignScore')} / ${m.result.duration.toFixed(1)}s`;
+      if(total)total.textContent=number(m.result.score);
     }
     if(m.type==='settings'){
       $('modal-root').querySelector('.settings-rows')?.insertAdjacentHTML('afterbegin',`<label class="setting-row"><span>${t('pilotName')}</span><input id="pilot-name" class="settings-input" maxlength="24" autocomplete="nickname" placeholder="${t('pilotNamePlaceholder')}" value="${escape(P().pilotName||'PILOT')}"></label>`);
@@ -1548,7 +1571,7 @@
     switch(name){
        case 'launch':startNewCampaign();break;
        case 'new-campaign':startNewCampaign();break;
-       case 'retry':enterFlight(false,true);break;
+       case 'retry':retryFlight();break;
       case 'home':
         if(['playing','paused','countdown','tutorial','resuming'].includes(engine.state)){ensurePause();action('abandon');}
         else showView('lobby');break;
@@ -1676,7 +1699,7 @@
           engine.draw();if(now-hudAt>40){refreshHud();hudAt=now;}
           audio.music(engine.state==='playing',!!engine.boss?.active);
           const m=topModal();if(m?.type==='result'&&$('result-score')){
-            const f=P().settings.reducedMotion?1:K.clamp((now-animationStart)/600,0,1);$('result-score').textContent=number(P().campaignScore*(1-(1-f)**3));
+            const f=P().settings.reducedMotion?1:K.clamp((now-animationStart)/600,0,1),target=Number(m.result?.score)||0;$('result-score').textContent=number(target*(1-(1-f)**3));
           }
         }
         if(now-previewAt>50){drawPreviews(now/1000);previewAt=now;}
