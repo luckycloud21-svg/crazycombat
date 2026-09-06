@@ -1,0 +1,4 @@
+ranking-server/node_modules/
+ranking-server/.env
+npm-debug.log*
+.DS_Store
