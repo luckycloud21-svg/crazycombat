@@ -1076,8 +1076,21 @@
         A.line(c,[[bullet.x,bullet.y+8],[bullet.x,bullet.y-4]],'#f6ffff',1.1);
       }
       for(const missile of this.pools.specials.items)if(missile.active){
-        A.glow(c,missile.x,missile.y,42,'#79f5e477');A.line(c,[[missile.x,missile.y+34],[missile.x,missile.y-29]],'#a8fff4',11);A.line(c,[[missile.x,missile.y+26],[missile.x,missile.y-35]],'#ffffff',3);
-        c.fillStyle='#9af8ed';c.beginPath();c.moveTo(missile.x,missile.y-43);c.lineTo(missile.x-13,missile.y-22);c.lineTo(missile.x+13,missile.y-22);c.closePath();c.fill();
+        const pulse=1+Math.sin(this.visualTime*18+missile.age*12)*.08;
+        A.glow(c,missile.x,missile.y,50,'#79f5e477');
+        c.save();c.translate(missile.x,missile.y);
+        // Wide exhaust makes the special shot read as a launched bomb, not a
+        // regular laser bolt.
+        c.fillStyle='#63f4e899';c.beginPath();c.moveTo(-10,8);c.lineTo(0,48+Math.sin(this.visualTime*22)*4);c.lineTo(10,8);c.closePath();c.fill();
+        c.fillStyle='#f4ffff';c.beginPath();c.moveTo(-4,8);c.lineTo(0,36+Math.sin(this.visualTime*22)*3);c.lineTo(4,8);c.closePath();c.fill();
+        c.strokeStyle='#9ffff2aa';c.lineWidth=2;c.setLineDash([3,5]);c.beginPath();c.arc(0,0,19+Math.sin(this.visualTime*10)*2,0,TAU);c.stroke();c.setLineDash([]);
+        c.fillStyle='#2c8c9c';c.beginPath();c.moveTo(-12,2);c.lineTo(-18,11);c.lineTo(-8,9);c.closePath();c.fill();c.beginPath();c.moveTo(12,2);c.lineTo(18,11);c.lineTo(8,9);c.closePath();c.fill();
+        const shell=c.createRadialGradient(-5,-7,1,0,0,15);shell.addColorStop(0,'#ffffff');shell.addColorStop(.3,'#c7fff8');shell.addColorStop(.72,'#4bd5d0');shell.addColorStop(1,'#11627a');
+        c.fillStyle=shell;c.beginPath();c.arc(0,0,14*pulse,0,TAU);c.fill();
+        c.strokeStyle='#d9fff8';c.lineWidth=1.7;c.beginPath();c.arc(0,0,14*pulse,0,TAU);c.stroke();
+        c.fillStyle='#f7ffff';c.beginPath();c.arc(-4,-6,4.5,0,TAU);c.fill();
+        c.fillStyle='#17758a';c.beginPath();c.arc(4,5,4,0,TAU);c.fill();
+        c.restore();
       }
       for(const e of this.pools.enemies.items)if(e.active)A.enemy(c,e,this.visualTime);
       if(b?.active)A.boss(c,b,this.visualTime);
