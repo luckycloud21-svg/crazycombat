@@ -104,7 +104,7 @@
         <aside id="right-flight-panel" class="flight-aside"></aside>
       </div>
     </section>
-    <footer id="footer" class="footer"><span id="footer-edition">HTML5 EDITION · v1.7.0</span><span id="footer-note">NO ADS. NO PAID STAT BOOSTS.</span><button data-action="privacy" class="text-button" id="footer-privacy">DATA & CREDITS</button></footer>
+    <footer id="footer" class="footer"><span id="footer-edition">HTML5 EDITION · v1.9.0</span><span id="footer-note">NO ADS. NO PAID STAT BOOSTS.</span><button data-action="privacy" class="text-button" id="footer-privacy">DATA & CREDITS</button></footer>
   </div>
   <div id="modal-root" class="modal-root hidden"></div>
   <div id="toast" class="toast hidden" role="status"></div>
@@ -118,7 +118,7 @@
   'use strict';
   const CC = root.CC = root.CC || {};
   CC.CONFIG = {
-    version: '1.7.0', configVersion: 'html5-campaign-1.7.0',
+    version: '1.9.0', configVersion: 'html5-campaign-1.9.0',
     totalStages: 1000,
     // HTTPS JSON endpoint: GET returns cumulative player totals; POST adds one run score.
     // It can be supplied by the host page or with ?leaderboard=https%3A%2F%2F… .
@@ -156,14 +156,32 @@
     specialMissile: { maxKi: 100, damage: 360, blastRadius: 180, hitRadius: 30, speed: 360, chargePerSecond: 48 },
     score: { survivalBonus: 1000, hpBonus: 300, cap: 999999, totalCap: 999999999999999, comboSeconds: 2 },
     ships: [
-      // Stats are intentionally trade-offs rather than straight upgrades:
-      // FALCON is the baseline, NOVA is fast but fragile, PHANTOM is strong but slow.
-      { id: 'falcon', name: 'FALCON', code: 'F-01', price: 0, color: '#ff965e', stats: { firepower: 3, armor: 3, handling: 3 } },
-      { id: 'nova', name: 'NOVA', code: 'N-02', price: 1500, color: '#73e7f0', stats: { firepower: 4, armor: 2, handling: 5 } },
-      { id: 'phantom', name: 'PHANTOM', code: 'P-03', price: 3500, color: '#bda2ff', stats: { firepower: 5, armor: 4, handling: 2 } },
-      { id: 'orion', name: 'ORION', code: 'O-04', price: 6000, color: '#ffd36a', stats: { firepower: 5, armor: 4, handling: 4 } },
-      { id: 'apex', name: 'APEX', code: 'A-05', price: 10000, color: '#9cf7ff', stats: { firepower: 5, armor: 5, handling: 4 } },
-      { id: 'zenith', name: 'ZENITH', code: 'Z-06', price: 15000, color: '#f6c7ff', stats: { firepower: 5, armor: 5, handling: 5 } }
+      // Weapon profiles make each airframe feel different in flight. Primary
+      // damage/size and special blast radius increase with the ship tier.
+      { id: 'falcon', name: 'FALCON', code: 'F-01', price: 0, color: '#ff965e', stats: { firepower: 3, armor: 3, handling: 3 }, loadout: {
+        primary: { color: '#8adbfb', glow: '#4dcfff', core: '#f6ffff', damage: 1.00, speed: 1.00, radius: 3.0, width: 3.5, length: 18 },
+        special: { color: '#d95043', accent: '#ffc45c', core: '#fff3c7', dark: '#682c39', glow: '#ff704d', damage: 1.00, blastRadius: 180, hitRadius: 30, speed: 360, scale: 1.00 }
+      } },
+      { id: 'nova', name: 'NOVA', code: 'N-02', price: 1500, color: '#73e7f0', stats: { firepower: 4, armor: 2, handling: 5 }, loadout: {
+        primary: { color: '#42fff0', glow: '#20e8df', core: '#efffff', damage: 1.08, speed: 1.12, radius: 3.3, width: 4.0, length: 21 },
+        special: { color: '#12bdbd', accent: '#8cfff7', core: '#f1ffff', dark: '#0e5665', glow: '#31fff0', damage: 1.10, blastRadius: 200, hitRadius: 34, speed: 400, scale: 1.06 }
+      } },
+      { id: 'phantom', name: 'PHANTOM', code: 'P-03', price: 3500, color: '#bda2ff', stats: { firepower: 5, armor: 4, handling: 2 }, loadout: {
+        primary: { color: '#c19bff', glow: '#a36eff', core: '#fff7ff', damage: 1.18, speed: .98, radius: 3.9, width: 4.7, length: 24 },
+        special: { color: '#8c4ed1', accent: '#e1b8ff', core: '#fff0ff', dark: '#42255e', glow: '#b084ff', damage: 1.22, blastRadius: 225, hitRadius: 38, speed: 350, scale: 1.14 }
+      } },
+      { id: 'orion', name: 'ORION', code: 'O-04', price: 6000, color: '#ffd36a', stats: { firepower: 5, armor: 4, handling: 4 }, loadout: {
+        primary: { color: '#ffd36a', glow: '#ffad36', core: '#fffbea', damage: 1.30, speed: 1.06, radius: 4.2, width: 5.2, length: 26 },
+        special: { color: '#d87825', accent: '#ffe08a', core: '#fff8d9', dark: '#6c3a26', glow: '#ffb84d', damage: 1.36, blastRadius: 245, hitRadius: 41, speed: 390, scale: 1.20 }
+      } },
+      { id: 'apex', name: 'APEX', code: 'A-05', price: 10000, color: '#9cf7ff', stats: { firepower: 5, armor: 5, handling: 4 }, loadout: {
+        primary: { color: '#66f5ff', glow: '#2cd9ff', core: '#ffffff', damage: 1.44, speed: 1.16, radius: 4.7, width: 5.8, length: 29 },
+        special: { color: '#168ec7', accent: '#a9ffff', core: '#f3ffff', dark: '#164b70', glow: '#4de9ff', damage: 1.52, blastRadius: 270, hitRadius: 45, speed: 420, scale: 1.28 }
+      } },
+      { id: 'zenith', name: 'ZENITH', code: 'Z-06', price: 15000, color: '#f6c7ff', stats: { firepower: 5, armor: 5, handling: 5 }, loadout: {
+        primary: { color: '#ff8cff', glow: '#f04dff', core: '#fffaff', damage: 1.60, speed: 1.24, radius: 5.2, width: 6.4, length: 32 },
+        special: { color: '#d13faf', accent: '#ffd0ff', core: '#fff4ff', dark: '#672552', glow: '#ff6de5', damage: 1.72, blastRadius: 300, hitRadius: 50, speed: 450, scale: 1.36 }
+      } }
     ],
     missions: [
       { id: 'play_1', target: 1, reward: 100, tier: 0 },
@@ -220,13 +238,45 @@
       handling: clamp(int(raw.handling, 5) || 3, 1, 5)
     };
   }
+  function shipLoadout(id) {
+    const ship = C.ships.find(s => s.id === id), primary = ship?.loadout?.primary || {}, special = ship?.loadout?.special || {};
+    return {
+      primary: {
+        color: primary.color || '#8adbfb', glow: primary.glow || primary.color || '#4dcfff', core: primary.core || '#f6ffff',
+        damage: clamp(Number(primary.damage) || 1, .5, 3), speed: clamp(Number(primary.speed) || 1, .5, 2),
+        radius: clamp(Number(primary.radius) || 3, 2, 8), width: clamp(Number(primary.width) || 3.5, 2, 10), length: clamp(Number(primary.length) || 18, 12, 42)
+      },
+      special: {
+        color: special.color || '#d95043', accent: special.accent || '#ffc45c', core: special.core || '#fff3c7', dark: special.dark || '#682c39', glow: special.glow || special.color || '#ff704d',
+        damage: clamp(Number(special.damage) || 1, .5, 3), blastRadius: clamp(Number(special.blastRadius) || C.specialMissile.blastRadius, 100, 420),
+        hitRadius: clamp(Number(special.hitRadius) || C.specialMissile.hitRadius, 15, 80), speed: clamp(Number(special.speed) || C.specialMissile.speed, 180, 700), scale: clamp(Number(special.scale) || 1, .75, 2)
+      }
+    };
+  }
   function stageDifficulty(stage = 1) {
     const s = clamp(int(stage, C.totalStages), 1, C.totalStages), progress = (s - 1) / Math.max(1, C.totalStages - 1);
     // A visible, smooth ramp: every stage is harder, while the late campaign
     // remains challenging without making the first few stages spike sharply.
     const ramp = Math.pow(progress, .72);
     return { stage: s, ramp, enemy: 1 + ramp * 2.6, boss: 1 + ramp * 4.8,
-      speed: 1 + ramp * .85, spawn: 1 + ramp * .75, score: 1 + ramp * 2.4 };
+      speed: 1 + ramp * .85, spawn: 1 + ramp * .75, score: 1 + ramp * 2.4,
+      attack: 1 + ramp * 1.25, attackRange: 1 + ramp * .75 };
+  }
+  function stageEnemyTheme(stage = 1) {
+    const s = clamp(int(stage, C.totalStages), 1, C.totalStages), band = Math.min(9, Math.floor((s - 1) / Math.max(1, Math.ceil(C.totalStages / 10))));
+    const themes = [
+      { accent: '#ff768e', curve: '#ffb074', dash: '#ffd878', heavy: '#ff6873', body: '#502c40', wing: '#d56c82', dark: '#20182e' },
+      { accent: '#ff6f6a', curve: '#ffad76', dash: '#ffe080', heavy: '#ff4f58', body: '#542c3b', wing: '#d76e6d', dark: '#241c2e' },
+      { accent: '#ff8757', curve: '#ffc06b', dash: '#ffe27d', heavy: '#ff5e43', body: '#57342c', wing: '#d78656', dark: '#2a202b' },
+      { accent: '#f4c84e', curve: '#ffda70', dash: '#fff19a', heavy: '#e5a82f', body: '#504226', wing: '#c7a951', dark: '#29282a' },
+      { accent: '#c8ed57', curve: '#dff37b', dash: '#efffa0', heavy: '#9edc35', body: '#3d4a2b', wing: '#91b94d', dark: '#202d2c' },
+      { accent: '#52e4b4', curve: '#81efe1', dash: '#c0ff9a', heavy: '#2bce9d', body: '#1d453e', wing: '#4cb394', dark: '#122b32' },
+      { accent: '#57c9f7', curve: '#87d9ff', dash: '#b4f4ff', heavy: '#3997e4', body: '#1b3d57', wing: '#4e9fc3', dark: '#12263e' },
+      { accent: '#8f9aff', curve: '#b3b9ff', dash: '#d2d7ff', heavy: '#6b6de6', body: '#2d315b', wing: '#747dc9', dark: '#211f43' },
+      { accent: '#c487ff', curve: '#d1aaff', dash: '#f2d1ff', heavy: '#a84deb', body: '#432b59', wing: '#9868c4', dark: '#2b1d46' },
+      { accent: '#ef72dc', curve: '#f5a5ee', dash: '#ffd2f8', heavy: '#d944c5', body: '#522746', wing: '#c25baf', dark: '#321b3c' }
+    ];
+    return { ...themes[band], tier: band + 1 };
   }
   function makeMissions(day) {
     const random = rng(hash(day));
@@ -383,7 +433,7 @@
       this.persist();
     }
   }
-  CC.Core = { clamp, int, clone, hash, rng, weighted, dateKey, multiplier, makePlayerId, shipStats, stageDifficulty, makeMissions, defaults, normalize, ensureDay, finalScore, applyRun, claimMission, buyShip, Pool, Store };
+  CC.Core = { clamp, int, clone, hash, rng, weighted, dateKey, multiplier, makePlayerId, shipStats, shipLoadout, stageDifficulty, stageEnemyTheme, makeMissions, defaults, normalize, ensureDay, finalScore, applyRun, claimMission, buyShip, Pool, Store };
   if (typeof module !== 'undefined' && module.exports) module.exports=CC.Core;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -442,7 +492,7 @@
     fullscreen:'FULLSCREEN', fullscreenUnavailable:'Fullscreen is unavailable here. Use the host’s fullscreen button.', mute:'TOGGLE SOUND',
     saveRecovered:'A damaged save was recovered. Check your progress and keep an exported backup.', saveUnavailable:'Browser storage is unavailable. Progress lasts only for this session; export a save to keep it.',
     lowEffects:'Reduced effects enabled for smoother play.', close:'CLOSE', rotate:'Rotate for takeoff.', rotateDesc:'This flight uses a portrait playfield. Turn your phone upright to continue.',
-     version:'HTML5 EDITION · v1.7.0', threat:'THREAT LEVEL', countdownBoss:'BOSS AT 00:50', endpoint:'DEFEAT THE BOSS',
+     version:'HTML5 EDITION · v1.9.0', threat:'THREAT LEVEL', countdownBoss:'BOSS AT 00:50', endpoint:'DEFEAT THE BOSS',
     supply:'SUPPLY INBOUND', hpFull:'FULL HULL · +2', powerFull:'MAX POWER · +4', magnet:'MAGNET', secured:'SECTOR SECURED',
     play_1:'Complete 1 flight', kill_50:'Destroy 50 enemies', kill_100:'Destroy 100 enemies', combo_15:'Reach a 15-kill combo',
     power_5:'Reach POWER level 5', survive_60:'Survive a full 60 seconds', boss_kill:'Destroy the boss', shield_2:'Use 2 shields in one flight', coin_40:'Collect 40 coins in one flight',
@@ -502,7 +552,7 @@
     fullscreen:'전체 화면', fullscreenUnavailable:'여기서는 전체 화면을 사용할 수 없어요. itch.io의 전체 화면 버튼을 이용하세요.', mute:'소리 전환',
     saveRecovered:'손상된 저장 정보를 복구했어요. 기록을 확인하고 파일로 백업해 두세요.', saveUnavailable:'브라우저 저장소를 사용할 수 없어요. 이 세션에서만 유지되니 저장 파일을 내보내세요.',
     lowEffects:'원활한 플레이를 위해 효과를 줄였어요.', close:'닫기', rotate:'화면을 세로로 돌려주세요.', rotateDesc:'세로형 전투 화면이에요. 휴대폰을 세워 계속 플레이하세요.',
-     version:'HTML5 에디션 · v1.7.0', threat:'위험 단계', countdownBoss:'보스 00:50', endpoint:'보스 격파',
+     version:'HTML5 에디션 · v1.9.0', threat:'위험 단계', countdownBoss:'보스 00:50', endpoint:'보스 격파',
     supply:'보급 접근', hpFull:'최대 체력 · +2', powerFull:'최대 파워 · +4', magnet:'자석', secured:'구간 확보',
     play_1:'전투 1회 완료', kill_50:'일반 적 50기 처치', kill_100:'일반 적 100기 처치', combo_15:'15 콤보 달성',
     power_5:'POWER 5단계 달성', survive_60:'60초 동안 생존', boss_kill:'보스 1기 격파', shield_2:'한 전투에서 쉴드 2회 사용', coin_40:'한 전투에서 코인 40개 획득',
@@ -579,22 +629,23 @@
   }
   function enemy(c,e,time=0) {
     const heavy=e.type==='heavy',dash=e.type==='dash',curve=e.type.startsWith('curve');
-    const accent=heavy?'#ff6873':dash?'#ffd878':curve?'#ffb074':'#ff768e';
+    const theme=e.theme||{accent:'#ff768e',curve:'#ffb074',dash:'#ffd878',heavy:'#ff6873',body:'#502c40',wing:'#d56c82',dark:'#20182e'};
+    const accent=heavy?theme.heavy:dash?theme.dash:curve?theme.curve:theme.accent;
     c.save();c.translate(e.x,e.y);c.rotate((e.bank||0)+Math.PI);
     const s=heavy?1.02:dash?.56:.61;c.scale(s,s);
     if(e.flash>0) c.globalAlpha=.55;
     glow(c,0,23,25,accent+'33');
     if(heavy) {
-      path(c,[[-18,-31],[-37,-8],[-43,20],[-30,31],[-12,24],[0,33],[12,24],[30,31],[43,20],[37,-8],[18,-31]],'#422b3e','#b95869',1.4);
-      [-1,1].forEach(s=>{path(c,[[s*17,-26],[s*30,-4],[s*34,18],[s*18,16],[s*10,-8]],'#865269');
+      path(c,[[-18,-31],[-37,-8],[-43,20],[-30,31],[-12,24],[0,33],[12,24],[30,31],[43,20],[37,-8],[18,-31]],theme.body,theme.heavy,1.4);
+      [-1,1].forEach(s=>{path(c,[[s*17,-26],[s*30,-4],[s*34,18],[s*18,16],[s*10,-8]],theme.wing);
         line(c,[[s*20,-15],[s*24,-7]],accent,4);line(c,[[s*22,23],[s*30,23]],accent,4);
-        path(c,[[s*30,-7],[s*36,-4],[s*37,11],[s*31,9]],'#253446');});
-      path(c,[[0,-33],[-10,-8],[-8,21],[0,28],[8,21],[10,-8]],'#d38393');
+        path(c,[[s*30,-7],[s*36,-4],[s*37,11],[s*31,9]],theme.dark);});
+      path(c,[[0,-33],[-10,-8],[-8,21],[0,28],[8,21],[10,-8]],theme.curve);
     } else {
       const w=dash?22:curve?36:31;
-      path(c,[[0,-40],[-10,-11],[-w,6],[-w+3,24],[-12,18],[0,30],[12,18],[w-3,24],[w,6],[10,-11]],'#502c40',accent,1.3);
-      path(c,[[-8,-8],[-w+5,9],[-w+7,16],[-10,10]],'#d56c82');
-      path(c,[[8,-8],[w-5,9],[w-7,16],[10,10]],'#854358');
+      path(c,[[0,-40],[-10,-11],[-w,6],[-w+3,24],[-12,18],[0,30],[12,18],[w-3,24],[w,6],[10,-11]],theme.dark,accent,1.3);
+      path(c,[[-8,-8],[-w+5,9],[-w+7,16],[-10,10]],theme.wing);
+      path(c,[[8,-8],[w-5,9],[w-7,16],[10,10]],theme.body);
       path(c,[[0,-38],[-5,-6],[-5,12],[0,20],[5,12],[5,-6]],accent);
       if(curve) line(c,[[-22,17],[-15,21],[15,21],[22,17]],'#ffe0ba',2);
       if(dash) {line(c,[[-12,0],[-12,28]],'#fff1bd',2);line(c,[[12,0],[12,28]],'#fff1bd',2);}
@@ -607,20 +658,21 @@
   }
   function boss(c,b,time=0) {
     c.save();c.translate(b.x,b.y);
-    const accent=b.hp<=360?'#ff6577':'#f3ac79';
+    const theme=b.theme||{heavy:'#f3ac79',body:'#293745',wing:'#668088',dark:'#16212e',curve:'#cc8a67'};
+    const accent=b.hp<=360?'#ff6577':theme.heavy;
     glow(c,0,10,112,accent+'1b');
     [-1,1].forEach(s=>{
-      path(c,[[s*15,-34],[s*55,-41],[s*85,-17],[s*93,10],[s*72,31],[s*47,18],[s*25,29]],'#293745','#668088',1.2);
-      path(c,[[s*29,-23],[s*54,-31],[s*76,-14],[s*74,3],[s*48,0]],'#66737a');
-      path(c,[[s*45,7],[s*74,11],[s*71,22],[s*44,15]],'#cc8a67');
-      path(c,[[s*65,-7],[s*87,0],[s*85,9],[s*65,6]],'#a67764');
-      path(c,[[s*41,-4],[s*51,-2],[s*49,36],[s*40,32]],'#16212e','#869497',1);
+      path(c,[[s*15,-34],[s*55,-41],[s*85,-17],[s*93,10],[s*72,31],[s*47,18],[s*25,29]],theme.body,theme.wing,1.2);
+      path(c,[[s*29,-23],[s*54,-31],[s*76,-14],[s*74,3],[s*48,0]],theme.wing);
+      path(c,[[s*45,7],[s*74,11],[s*71,22],[s*44,15]],theme.curve);
+      path(c,[[s*65,-7],[s*87,0],[s*85,9],[s*65,6]],theme.heavy);
+      path(c,[[s*41,-4],[s*51,-2],[s*49,36],[s*40,32]],theme.dark,theme.wing,1);
       glow(c,s*45,34,17,accent+'99');c.fillStyle=accent;c.fillRect(s*45-3,29,6,9);
       for(let i=0;i<3;i++){c.fillStyle='#142837';c.fillRect(s*56-3,-23+i*6,7,3);}
     });
-    path(c,[[-23,-43],[0,-54],[23,-43],[30,-3],[18,39],[0,53],[-18,39],[-30,-3]],'#172535','#9a8d82',1.4);
-    path(c,[[0,-48],[-17,-36],[-20,-7],[-10,9],[0,17],[10,9],[20,-7],[17,-36]],'#637c88');
-    path(c,[[0,19],[-12,11],[-8,34],[0,45],[8,34],[12,11]],'#c18569');
+    path(c,[[-23,-43],[0,-54],[23,-43],[30,-3],[18,39],[0,53],[-18,39],[-30,-3]],theme.dark,theme.wing,1.4);
+    path(c,[[0,-48],[-17,-36],[-20,-7],[-10,9],[0,17],[10,9],[20,-7],[17,-36]],theme.wing);
+    path(c,[[0,19],[-12,11],[-8,34],[0,45],[8,34],[12,11]],theme.curve);
     c.strokeStyle=accent;c.lineWidth=2;c.beginPath();c.arc(0,-9,14,0,TAU);c.stroke();
     glow(c,0,-9,20,accent+'88');c.fillStyle='#ffebe0';c.beginPath();c.arc(0,-9,7,0,TAU);c.fill();
     if(b.flash>0){c.globalAlpha=.5;c.fillStyle='#ffffff';c.beginPath();c.arc(0,-9,13,0,TAU);c.fill();}
@@ -758,6 +810,7 @@
       for(const pool of Object.values(this.pools))pool.clear();
       this.stage=K.clamp(K.int(stage,C.totalStages)||1,1,C.totalStages);this.difficulty=K.stageDifficulty(this.stage);
       this.shipStats=K.shipStats(planeId);
+      this.shipLoadout=K.shipLoadout(planeId);
       const startingPower=K.clamp(K.int(power,C.player.maxPower)||1,1,C.player.maxPower);
       this.p={x:C.width/2,y:C.height-133,hp:this.shipStats.armor,maxHp:this.shipStats.armor,power:startingPower,ki:0,invincible:0,shield:0,cooldown:0,magnet:0,bank:0};
       this.stats={combatScore:0,coinScore:0,coins:0,kills:0,specialMissiles:0,killsByType:{scout:0,curveL:0,curveR:0,dash:0,heavy:0},combo:0,maxCombo:0,maxPower:startingPower,shieldUses:0,bossKilled:false};
@@ -843,23 +896,27 @@
       }
     }
     fire(){
-      const p=this.p,w=C.weapons[p.power-1],speed=C.browserTuning.bulletSpeed,damageMultiplier=1+(this.shipStats.firepower-3)*.10;
+      const p=this.p,w=C.weapons[p.power-1],profile=this.shipLoadout.primary,speed=C.browserTuning.bulletSpeed*profile.speed,damageMultiplier=1+(this.shipStats.firepower-3)*.10;
       for(let i=0;i<w.count;i++){
         const offset=(i-(w.count-1)/2)*(w.count===2?14:12),angle=(i-(w.count-1)/2)*w.spread;
-        this.pools.bullets.take({x:p.x+offset,y:p.y-28,vx:Math.sin(angle)*speed,vy:-Math.cos(angle)*speed,damage:Math.round(w.damage*damageMultiplier),r:3});
+        this.pools.bullets.take({x:p.x+offset,y:p.y-28,vx:Math.sin(angle)*speed,vy:-Math.cos(angle)*speed,damage:Math.round(w.damage*profile.damage*damageMultiplier),r:profile.radius,
+          color:profile.color,glow:profile.glow,core:profile.core,width:profile.width,length:profile.length});
       }
       this.audio.sfx('shot');
     }
     spawnEnemy(type,x,y,training=false){
-      const d=C.enemies[type],wave=C.waves[Math.min(4,Math.floor(this.elapsed/10))];
+      const d=C.enemies[type],wave=C.waves[Math.min(4,Math.floor(this.elapsed/10))],theme=K.stageEnemyTheme(this.stage),attack=this.difficulty.attack;
       const px=x??(34+this.random()*(C.width-68));
       const hp=Math.ceil(d.hp*this.difficulty.enemy);
       return this.pools.enemies.take({type,x:px,y:y??(type==='dash'?100:-45),baseX:px,hp,maxHp:hp,r:d.radius,
-        age:0,speed:d.speed*C.browserTuning.worldUnitsToPixels*wave.speed*this.difficulty.speed,fireAt:type==='scout'?Math.max(.65,1.35/this.difficulty.speed):Math.max(.8,1.9/this.difficulty.speed),shots:0,flash:0,bank:0,training});
+        age:0,speed:d.speed*C.browserTuning.worldUnitsToPixels*wave.speed*this.difficulty.speed,fireAt:type==='scout'?Math.max(.55,1.35/attack):Math.max(.65,1.9/attack),fireInterval:type==='scout'?Math.max(.55,1.35/attack):Math.max(.42,1.65/attack),
+        attackRange:this.difficulty.attackRange,theme,shots:0,flash:0,bank:0,training});
     }
     hostile(x,y,angle,speed=C.browserTuning.enemyBulletSpeed,style=0){
-      speed*=this.difficulty.speed;
-      this.pools.hostile.take({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:style===1?5.5:4.5,style});
+      const range=this.difficulty.attackRange;
+      speed*=this.difficulty.speed*this.difficulty.attack;
+      const radius=(style===1?5.5:4.5)*(.85+range*.15);
+      this.pools.hostile.take({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:radius,range,style});
     }
     updateEnemies(dt){
       const p=this.p;
@@ -874,11 +931,13 @@
               const sign=e.type==='curveL'?-1:1;e.x=K.clamp(e.baseX+sign*(1-Math.cos(e.age*1.8))*42,22,C.width-22);e.bank=sign*Math.sin(e.age*1.8)*.3;
             }
           }
-          if(e.y>115&&e.y<530&&e.age>=e.fireAt){
+          const attackRange=this.difficulty.attackRange;
+          if(e.y>115-(attackRange-1)*50&&e.y<530+(attackRange-1)*120&&e.age>=e.fireAt){
             const a=Math.atan2(p.y-e.y,p.x-e.x);
-            if(e.type==='scout'&&e.shots===0){this.hostile(e.x,e.y+17,a);e.shots++;}
+            if(e.type==='scout'){this.hostile(e.x,e.y+17,a);e.shots++;e.fireAt=e.age+e.fireInterval;}
             if(e.type==='heavy'){
-              [-.22,0,.22].forEach(d=>this.hostile(e.x,e.y+25,a+d,138,1));e.fireAt=e.age+1.65;
+              const spread=.22*attackRange;
+              [-spread,0,spread].forEach(d=>this.hostile(e.x,e.y+25,a+d,138,1));e.fireAt=e.age+e.fireInterval;
             }
           }
           if(e.y>C.height+65||e.x<-60||e.x>C.width+60){e.active=false;continue;}
@@ -890,7 +949,7 @@
     spawnBoss(){
       this.bossSpawned=true;
       const hp=Math.ceil(C.boss.hp*this.difficulty.boss);
-      this.boss={active:true,x:C.width/2,y:-115,hp,maxHp:hp,age:0,phase:'entry',clock:0,shots:0,flash:0,enraged:false,aimX:this.p.x,aimY:this.p.y};
+      this.boss={active:true,x:C.width/2,y:-115,hp,maxHp:hp,age:0,phase:'entry',clock:0,shots:0,flash:0,enraged:false,aimX:this.p.x,aimY:this.p.y,theme:K.stageEnemyTheme(this.stage)};
       this.message('bossWarning',2);this.audio.sfx('warning');this.cb.haptic?.([35,40,35]);
     }
     bossPhase(phase){const b=this.boss;b.phase=phase;b.clock=0;b.shots=0;if(phase==='aimWarn'){b.aimX=this.p.x;b.aimY=this.p.y;}}
@@ -901,19 +960,19 @@
       if(b.phase==='entry'){b.y+=370*dt;if(b.y>=161){b.y=161;this.bossPhase('aimWarn');}return;}
       b.y=161+Math.sin(b.age*1.2)*7;
       switch(b.phase){
-        case 'aimWarn':if(b.clock>=C.boss.aimedWarning)this.bossPhase('aimFire');break;
+        case 'aimWarn':if(b.clock>=C.boss.aimedWarning/this.difficulty.attack)this.bossPhase('aimFire');break;
         case 'aimFire':
-          if(b.shots<3&&b.clock>=b.shots*C.boss.aimedSpacing){this.hostile(b.x,b.y+36,Math.atan2(b.aimY-b.y,b.aimX-b.x),190,1);b.shots++;}
-          if(b.clock>.65)this.bossPhase('radialWarn');break;
-        case 'radialWarn':if(b.clock>.35)this.bossPhase('radialFire');break;
+          if(b.shots<3&&b.clock>=b.shots*C.boss.aimedSpacing/this.difficulty.attack){this.hostile(b.x,b.y+36,Math.atan2(b.aimY-b.y,b.aimX-b.x),190,1);b.shots++;}
+          if(b.clock>.65/this.difficulty.attack)this.bossPhase('radialWarn');break;
+        case 'radialWarn':if(b.clock>.35/this.difficulty.attack)this.bossPhase('radialFire');break;
         case 'radialFire':
-          if(b.shots<2&&b.clock>=b.shots*.32){for(let i=0;i<8;i++)this.hostile(b.x,b.y+8,i*TAU/8+Math.PI/8+b.shots*.16,137,1);b.shots++;}
-          if(b.clock>.66)this.bossPhase('sweepWarn');break;
-        case 'sweepWarn':if(b.clock>=C.boss.sweepWarning)this.bossPhase('sweepFire');break;
+          if(b.shots<2&&b.clock>=b.shots*.32/this.difficulty.attack){for(let i=0;i<8;i++)this.hostile(b.x,b.y+8,i*TAU/8+Math.PI/8+b.shots*.16,137,1);b.shots++;}
+          if(b.clock>.66/this.difficulty.attack)this.bossPhase('sweepWarn');break;
+        case 'sweepWarn':if(b.clock>=C.boss.sweepWarning/this.difficulty.attack)this.bossPhase('sweepFire');break;
         case 'sweepFire':
-          if(b.shots<11&&b.clock>=b.shots*.072){const n=b.shots,dir=Math.floor(b.age/4)%2?10-n:n;this.hostile(b.x,b.y+28,.25+dir*(Math.PI-.5)/10,168,0);b.shots++;}
-          if(b.clock>.9)this.bossPhase('wait');break;
-        case 'wait':if(b.clock>.35*(b.enraged?.8:1))this.bossPhase('aimWarn');break;
+          if(b.shots<11&&b.clock>=b.shots*.072/this.difficulty.attack){const n=b.shots,dir=Math.floor(b.age/4)%2?10-n:n;this.hostile(b.x,b.y+28,.25+dir*(Math.PI-.5)/10,168,0);b.shots++;}
+          if(b.clock>.9/this.difficulty.attack)this.bossPhase('wait');break;
+        case 'wait':if(b.clock>.35*(b.enraged?.8:1)/this.difficulty.attack)this.bossPhase('aimWarn');break;
       }
       if(hit(b,this.p,C.boss.radius+C.player.radius))this.damage();
     }
@@ -982,25 +1041,28 @@
     }
     fireSpecial(){
       if(this.p.ki<C.specialMissile.maxKi)return false;
-      const missile=this.pools.specials.take({x:this.p.x,y:this.p.y-32,vx:0,vy:-C.specialMissile.speed,age:0});
+      const profile=this.shipLoadout.special,damageMultiplier=1+(this.shipStats.firepower-3)*.10;
+      const missile=this.pools.specials.take({x:this.p.x,y:this.p.y-32,vx:0,vy:-profile.speed,age:0,
+        color:profile.color,accent:profile.accent,core:profile.core,dark:profile.dark,glow:profile.glow,scale:profile.scale,
+        damage:Math.round(C.specialMissile.damage*profile.damage*damageMultiplier*(1+Math.log1p(this.stage-1)*.08)),blastRadius:profile.blastRadius,hitRadius:profile.hitRadius});
       if(!missile)return false;
-      this.p.ki=0;this.stats.specialMissiles++;this.message('kiFull',1.5);this.audio.sfx('special');this.burst(this.p.x,this.p.y,'#8ff6ef',16,120);return true;
+      this.p.ki=0;this.stats.specialMissiles++;this.message('kiFull',1.5);this.audio.sfx('special');this.burst(this.p.x,this.p.y,profile.glow,16,120);return true;
     }
     updateSpecials(dt){
       for(const m of this.pools.specials.items){
         if(!m.active)continue;m.age+=dt;
         m.x+=m.vx*dt;m.y+=m.vy*dt;
-        const enemy=this.pools.enemies.items.find(e=>e.active&&hit(m,e,C.specialMissile.hitRadius+e.r));
-        const boss=this.boss?.active&&hit(m,this.boss,C.specialMissile.hitRadius+this.boss.r)?this.boss:null;
-        if(enemy||boss||m.y<105){m.active=false;this.specialBlast(m.x,m.y);}
+        const enemy=this.pools.enemies.items.find(e=>e.active&&hit(m,e,m.hitRadius+e.r));
+        const boss=this.boss?.active&&hit(m,this.boss,m.hitRadius+this.boss.r)?this.boss:null;
+        if(enemy||boss||m.y<105){m.active=false;this.specialBlast(m);}
       }
     }
-    specialBlast(x,y){
-      const radius=C.specialMissile.blastRadius,damageMultiplier=1+(this.shipStats.firepower-3)*.10,damage=Math.round(C.specialMissile.damage*damageMultiplier*(1+Math.log1p(this.stage-1)*.08));
+    specialBlast(missile){
+      const {x,y}=missile,radius=missile.blastRadius,damage=missile.damage;
       this.suppressKi=true;
       for(const e of this.pools.enemies.items)if(e.active&&Math.hypot(e.x-x,e.y-y)<radius+e.r){e.hp-=damage;e.flash=.12;if(e.hp<=0)this.killEnemy(e);}
       if(this.boss?.active&&Math.hypot(this.boss.x-x,this.boss.y-y)<radius+C.boss.radius){this.boss.hp-=damage;if(this.boss.hp<=0)this.killBoss();}
-      this.suppressKi=false;this.burst(x,y,'#9cfaf0',this.settings.reducedMotion?14:34,250);this.float(x,y,'SPECIAL HIT','#b6fff1');
+      this.suppressKi=false;this.burst(x,y,missile.glow,this.settings.reducedMotion?14:34,Math.min(360,radius*.95));this.float(x,y,'SPECIAL HIT',missile.accent);
     }
     pickup(i){
       if(!i.active)return;i.active=false;const p=this.p;let label='',color='#a4e3ed';
@@ -1080,24 +1142,27 @@
         c.fillStyle='#ffda91';c.font='700 16px sans-serif';c.textAlign='center';c.fillText('!',e.x,e.y-27);
       }
       for(const bullet of this.pools.bullets.items)if(bullet.active){
-        const col=this.p.power>=4?'#bceffe':'#8adbfb';A.line(c,[[bullet.x,bullet.y+13],[bullet.x+bullet.vx*.016,bullet.y-5]],col,3.5);
-        A.line(c,[[bullet.x,bullet.y+8],[bullet.x,bullet.y-4]],'#f6ffff',1.1);
+        const col=bullet.color||'#8adbfb',speed=Math.hypot(bullet.vx,bullet.vy)||1,dx=bullet.vx/speed,dy=bullet.vy/speed,half=(bullet.length||18)/2;
+        A.glow(c,bullet.x,bullet.y,(bullet.width||3.5)*6,(bullet.glow||col)+'55');
+        A.line(c,[[bullet.x-dx*half,bullet.y-dy*half],[bullet.x+dx*half,bullet.y+dy*half]],col,bullet.width||3.5);
+        A.line(c,[[bullet.x-dx*half*.62,bullet.y-dy*half*.62],[bullet.x+dx*half*.62,bullet.y+dy*half*.62]],bullet.core||'#f6ffff',Math.max(1.1,(bullet.width||3.5)*.28));
       }
       for(const missile of this.pools.specials.items)if(missile.active){
-        const pulse=1+Math.sin(this.visualTime*18+missile.age*12)*.08,flame=Math.sin(this.visualTime*24+missile.age*8);
-        A.glow(c,missile.x,missile.y,58,'#ff704d77');
-        c.save();c.translate(missile.x,missile.y);
-        // Jagged red and yellow exhaust gives the round projectile a bomb-flame silhouette.
-        c.fillStyle='#ff4938dd';c.beginPath();c.moveTo(-11,6);c.quadraticCurveTo(-18,17,-10,26);c.lineTo(-5,21);c.quadraticCurveTo(-5,37,0,51+flame*5);c.quadraticCurveTo(5,37,5,21);c.lineTo(10,26);c.quadraticCurveTo(18,17,11,6);c.closePath();c.fill();
-        c.fillStyle='#ffc45c';c.beginPath();c.moveTo(-6,7);c.quadraticCurveTo(-10,17,-5,22);c.lineTo(0,40+flame*3);c.lineTo(5,22);c.quadraticCurveTo(10,17,6,7);c.closePath();c.fill();
-        c.strokeStyle='#ffad58aa';c.lineWidth=2;c.setLineDash([4,5]);c.beginPath();c.arc(0,0,20+Math.sin(this.visualTime*10)*2,0,TAU);c.stroke();c.setLineDash([]);
-        c.fillStyle='#743342';c.beginPath();c.moveTo(-12,1);c.lineTo(-19,10);c.lineTo(-8,9);c.closePath();c.fill();c.beginPath();c.moveTo(12,1);c.lineTo(19,10);c.lineTo(8,9);c.closePath();c.fill();
-        const shell=c.createRadialGradient(-5,-7,1,0,0,16);shell.addColorStop(0,'#fff3c7');shell.addColorStop(.25,'#ffca6a');shell.addColorStop(.62,'#d95043');shell.addColorStop(1,'#4a2637');
+        const pulse=1+Math.sin(this.visualTime*18+missile.age*12)*.08,flame=Math.sin(this.visualTime*24+missile.age*8),scale=missile.scale||1;
+        const col=missile.color||'#d95043',accent=missile.accent||'#ffc45c',core=missile.core||'#fff3c7',dark=missile.dark||'#682c39';
+        A.glow(c,missile.x,missile.y,58*scale,(missile.glow||col)+'77');
+        c.save();c.translate(missile.x,missile.y);c.scale(scale,scale);
+        // A round bomb with a colored flame trail. Each ship supplies its own palette and size.
+        c.fillStyle=accent+'dd';c.beginPath();c.moveTo(-11,6);c.quadraticCurveTo(-18,17,-10,26);c.lineTo(-5,21);c.quadraticCurveTo(-5,37,0,51+flame*5);c.quadraticCurveTo(5,37,5,21);c.lineTo(10,26);c.quadraticCurveTo(18,17,11,6);c.closePath();c.fill();
+        c.fillStyle=core;c.beginPath();c.moveTo(-6,7);c.quadraticCurveTo(-10,17,-5,22);c.lineTo(0,40+flame*3);c.lineTo(5,22);c.quadraticCurveTo(10,17,6,7);c.closePath();c.fill();
+        c.strokeStyle=accent+'aa';c.lineWidth=2;c.setLineDash([4,5]);c.beginPath();c.arc(0,0,20+Math.sin(this.visualTime*10)*2,0,TAU);c.stroke();c.setLineDash([]);
+        c.fillStyle=dark;c.beginPath();c.moveTo(-12,1);c.lineTo(-19,10);c.lineTo(-8,9);c.closePath();c.fill();c.beginPath();c.moveTo(12,1);c.lineTo(19,10);c.lineTo(8,9);c.closePath();c.fill();
+        const shell=c.createRadialGradient(-5,-7,1,0,0,16);shell.addColorStop(0,core);shell.addColorStop(.25,accent);shell.addColorStop(.62,col);shell.addColorStop(1,dark);
         c.fillStyle=shell;c.beginPath();c.arc(0,0,14*pulse,0,TAU);c.fill();
-        c.strokeStyle='#ffd27a';c.lineWidth=1.8;c.beginPath();c.arc(0,0,14*pulse,0,TAU);c.stroke();
-        c.strokeStyle='#ff8051';c.lineWidth=3;c.beginPath();c.arc(0,0,10*pulse,-.65,.65);c.stroke();
-        c.fillStyle='#fff8df';c.beginPath();c.arc(-4,-6,4.5,0,TAU);c.fill();
-        c.fillStyle='#682c39';c.beginPath();c.arc(4,5,4,0,TAU);c.fill();
+        c.strokeStyle=accent;c.lineWidth=1.8;c.beginPath();c.arc(0,0,14*pulse,0,TAU);c.stroke();
+        c.strokeStyle=col;c.lineWidth=3;c.beginPath();c.arc(0,0,10*pulse,-.65,.65);c.stroke();
+        c.fillStyle=core;c.beginPath();c.arc(-4,-6,4.5,0,TAU);c.fill();
+        c.fillStyle=dark;c.beginPath();c.arc(4,5,4,0,TAU);c.fill();
         c.restore();
       }
       for(const e of this.pools.enemies.items)if(e.active)A.enemy(c,e,this.visualTime);
@@ -1390,9 +1455,9 @@
      const stageScore=Math.min(C.score.cap,s.combatScore+s.coinScore);
      const committedScore=engine.state==='result'&&engine.result?Math.max(0,(Number(P().campaignScore)||0)-engine.result.score):Number(P().campaignScore)||0;
      const campaignScore=Math.min(C.score.totalCap,committedScore+stageScore);
-     // Each flight starts at zero. The completed run is added to campaignScore
-     // by applyRun, so the campaign total still carries across cleared stages.
-     const displayedScore=engine.state==='result'?campaignScore:stageScore;
+     // Show the campaign total during every flight. Each cleared stage is added
+     // by applyRun, so the total remains visible and continues across stages.
+     const displayedScore=campaignScore;
      $('hud-score').textContent=String(displayedScore).padStart(6,'0');$('hud-score').setAttribute('aria-label',`${t('score')}: ${number(displayedScore)}`);$('hud-time').innerHTML=`${Math.floor(elapsed)}<small>.${Math.floor(elapsed*10)%10}</small>`;
      document.querySelector('.hud-time').classList.remove('danger');
     if(force||lastHud.hp!==p.hp||lastHud.maxHp!==p.maxHp){$('hud-hp').innerHTML=Array.from({length:p.maxHp},(_,i)=>`<i class="${i>=p.hp?'empty':''}"></i>`).join('');$('hud-hp').setAttribute('aria-label',`${t('hull')}: ${p.hp} / ${p.maxHp}`);lastHud.hp=p.hp;lastHud.maxHp=p.maxHp;}
