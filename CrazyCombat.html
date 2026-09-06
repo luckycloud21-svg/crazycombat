@@ -51,6 +51,14 @@
     .global-row .global-score>span{font-size:17px;text-align:right;color:#ffca91;font-weight:650}
     .global-row .global-score small{font-size:8px;font-weight:500;letter-spacing:.4px;color:#a9c9d0;white-space:nowrap}
   </style>
+  <style id="super-bomb-ui">
+    .superbomb-hud{display:flex;align-items:center;gap:9px;margin:9px 18px 0;padding:7px 10px;border:1px solid #ff9b6785;border-radius:7px;background:linear-gradient(90deg,#4c2d2eaa,#203244aa);color:#ffd1a5;box-shadow:0 0 15px #ff895622}
+    .superbomb-hud .superbomb-key{display:inline-flex;align-items:center;justify-content:center;width:26px;height:25px;border:1px solid #ffb477;border-bottom-width:3px;border-radius:5px;background:#573239;color:#fff0d2;font:800 11px Consolas,monospace}
+    .superbomb-hud div{display:flex;align-items:center;justify-content:space-between;gap:10px;flex:1;min-width:0}.superbomb-hud div>span{font-size:9px;letter-spacing:1.2px;white-space:nowrap}.superbomb-hud strong{font-size:9px;color:#ffe4a9;letter-spacing:.7px;white-space:nowrap}
+    .superbomb-hud.ready{animation:superbombReady 1.6s ease-in-out infinite}@keyframes superbombReady{50%{border-color:#ffd39c;background:#5a343499;box-shadow:0 0 22px #ff9b5c55}}
+    .mouse-help{color:#bde2e4!important}.superbomb-help{color:#ffd0a2!important}
+    @media(max-width:680px){.superbomb-hud{margin-left:12px;margin-right:12px}.superbomb-hud div>span{font-size:8px}}
+  </style>
 <style>
   .stat-bars i{background:#2c4555}
   .stat-bars i.active{background:#6d98a1}
@@ -67,6 +75,15 @@
   .modal-card>p,.manual-section p,.manual-rule{font-size:13px;color:#b5c8d1}.control-line,.item-line{font-size:12px}.settings-note{font-size:11px;color:#a7bdc8}.setting-row{font-size:13px}
   .score-breakdown{grid-template-columns:repeat(5,1fr)}.score-breakdown span,.result-stats span{font-size:9px}.result-details{font-size:10px}.result-card .result-note{font-size:10px}
   @media(max-width:680px){body{font-size:14px}.hero-description,.page-heading p,.ship-card p{font-size:12px}.score-breakdown{grid-template-columns:repeat(3,1fr);row-gap:13px}.global-row .global-score{font-size:18px}}
+</style>
+<style id="readability-ui">
+  body{font-size:16px}
+  .eyebrow,.micro{font-size:12px}.section-label h2{font-size:15px}.section-label small,.daily-note,.mission-number{font-size:12px}.mission-name{font-size:14px}
+  .hero-description,.page-heading p,.ship-card p{font-size:14px}.ship-type,.ship-stat>span,.record-ship,.record-date,.flight-path span{font-size:12px}.record-panel p{font-size:12px}.record-score{font-size:23px}.footer{font-size:11px}
+  .global-panel-head h2{font-size:15px}.global-panel-head small,.global-status{font-size:12px}.global-row{font-size:14px}.global-row .global-stage,.global-row .global-stage small{font-size:12px}.global-row .global-score,.global-row .global-score>span{font-size:20px}
+  .hud .micro{font-size:11px}.stage-hud span,.ki-head span{font-size:11px}.stage-hud strong,.ki-head strong{font-size:11px}.superbomb-hud div>span,.superbomb-hud strong{font-size:10px}.superbomb-hud .superbomb-key{font-size:12px}.field-footer>span,.field-footer small{font-size:10px}.flight-aside>p,.aside-tip{font-size:13px}.aside-control>span,.aside-stat>span{font-size:11px}.keycap{font-size:11px}
+  .modal-card>p,.manual-section p,.manual-rule{font-size:14px}.control-line,.item-line{font-size:13px}.settings-note{font-size:12px}.setting-row{font-size:14px}.score-breakdown span,.result-stats span{font-size:10px}.result-details{font-size:11px}.result-card .result-note{font-size:11px}
+  @media(max-width:680px){body{font-size:15px}.hero-description,.page-heading p,.ship-card p{font-size:13px}.global-row{font-size:13px}.global-row .global-score,.global-row .global-score>span{font-size:19px}.flight-aside>p,.aside-tip{font-size:12px}.keycap{font-size:10px}}
 </style>
 </head>
 <body>
@@ -102,6 +119,7 @@
              <div class="timeline"><div id="hud-progress"></div><span></span></div>
              <div class="stage-hud"><span id="hud-stage-label">STAGE 001 / 1000</span><strong id="hud-difficulty">THREAT ×1.0</strong></div>
              <div class="ki-hud"><div class="ki-head"><span><span data-i18n="ki">KI</span> / <span data-i18n="specialMissile">SPECIAL MISSILE</span></span><strong id="hud-ki-status">CHARGING 0%</strong></div><div id="hud-ki-track" class="ki-track"><i id="hud-ki"></i></div></div>
+             <div id="superbomb-hud" class="superbomb-hud hidden" aria-live="polite"><span class="superbomb-key">E</span><div><span data-i18n="superBomb">SUPER BOMB</span><strong id="hud-superbomb-status">READY</strong></div></div>
              <div id="boss-hud" class="boss-hud hidden"><div><span data-i18n="bossName">DREADNOUGHT</span><span id="boss-hp-text">1200</span></div><div class="boss-track"><i id="boss-health"></i></div></div>
             <div id="combo-hud" class="combo-hud hidden"><strong id="combo-number">5</strong><div><span>COMBO</span><b id="combo-multiplier">×1.1</b></div><i id="combo-timer"></i></div>
             <div id="banner" class="field-banner hidden"></div>
@@ -167,33 +185,40 @@
     ],
     boss: { hp: 1200, score: 3000, radius: 65, aimedWarning: .45, aimedSpacing: .18, sweepWarning: .6 },
     specialMissile: { maxKi: 100, damage: 360, blastRadius: 180, hitRadius: 30, speed: 360, chargePerSecond: 48 },
+    superBomb: { damage: 850, blastWidth: 216, blastHeight: 500, hitRadius: 28, speed: 285, shieldSeconds: 1.35 },
     score: { survivalBonus: 1000, hpBonus: 300, timeBonus: 1800, timeBonusWindow: 75, cap: 999999, totalCap: 999999999999999, comboSeconds: 2 },
     ships: [
       // Weapon profiles make each airframe feel different in flight. Primary
       // damage/size and special blast radius increase with the ship tier.
       { id: 'falcon', name: 'FALCON', code: 'F-01', price: 0, color: '#ff965e', stats: { firepower: 3, armor: 3, handling: 3 }, loadout: {
         primary: { color: '#8adbfb', glow: '#4dcfff', core: '#f6ffff', damage: 1.00, speed: 1.00, radius: 3.0, width: 3.5, length: 18 },
-        special: { color: '#d95043', accent: '#ffc45c', core: '#fff3c7', dark: '#682c39', glow: '#ff704d', damage: 1.00, blastRadius: 180, hitRadius: 30, speed: 360, scale: 1.00 }
+        special: { color: '#d95043', accent: '#ffc45c', core: '#fff3c7', dark: '#682c39', glow: '#ff704d', damage: 1.00, blastRadius: 180, hitRadius: 30, speed: 360, scale: 1.00 },
+        superBomb: { color: '#d95043', accent: '#ffc45c', core: '#fff3c7', dark: '#682c39', glow: '#ff704d', damage: 1.00, blastWidth: 216, blastHeight: 500, hitRadius: 28, speed: 285, scale: 1.00 }
       } },
       { id: 'nova', name: 'NOVA', code: 'N-02', price: 1500, color: '#73e7f0', stats: { firepower: 4, armor: 2, handling: 5 }, loadout: {
         primary: { color: '#42fff0', glow: '#20e8df', core: '#efffff', damage: 1.08, speed: 1.12, radius: 3.3, width: 4.0, length: 21 },
-        special: { color: '#12bdbd', accent: '#8cfff7', core: '#f1ffff', dark: '#0e5665', glow: '#31fff0', damage: 1.10, blastRadius: 200, hitRadius: 34, speed: 400, scale: 1.06 }
+        special: { color: '#12bdbd', accent: '#8cfff7', core: '#f1ffff', dark: '#0e5665', glow: '#31fff0', damage: 1.10, blastRadius: 200, hitRadius: 34, speed: 400, scale: 1.06 },
+        superBomb: { color: '#12bdbd', accent: '#8cfff7', core: '#f1ffff', dark: '#0e5665', glow: '#31fff0', damage: 1.07, blastWidth: 232, blastHeight: 500, hitRadius: 30, speed: 300, scale: 1.06 }
       } },
       { id: 'phantom', name: 'PHANTOM', code: 'P-03', price: 3500, color: '#bda2ff', stats: { firepower: 5, armor: 4, handling: 2 }, loadout: {
         primary: { color: '#c19bff', glow: '#a36eff', core: '#fff7ff', damage: 1.18, speed: .98, radius: 3.9, width: 4.7, length: 24 },
-        special: { color: '#8c4ed1', accent: '#e1b8ff', core: '#fff0ff', dark: '#42255e', glow: '#b084ff', damage: 1.22, blastRadius: 225, hitRadius: 38, speed: 350, scale: 1.14 }
+        special: { color: '#8c4ed1', accent: '#e1b8ff', core: '#fff0ff', dark: '#42255e', glow: '#b084ff', damage: 1.22, blastRadius: 225, hitRadius: 38, speed: 350, scale: 1.14 },
+        superBomb: { color: '#8c4ed1', accent: '#e1b8ff', core: '#fff0ff', dark: '#42255e', glow: '#b084ff', damage: 1.14, blastWidth: 248, blastHeight: 500, hitRadius: 32, speed: 295, scale: 1.14 }
       } },
       { id: 'orion', name: 'ORION', code: 'O-04', price: 6000, color: '#ffd36a', stats: { firepower: 5, armor: 4, handling: 4 }, loadout: {
         primary: { color: '#ffd36a', glow: '#ffad36', core: '#fffbea', damage: 1.30, speed: 1.06, radius: 4.2, width: 5.2, length: 26 },
-        special: { color: '#d87825', accent: '#ffe08a', core: '#fff8d9', dark: '#6c3a26', glow: '#ffb84d', damage: 1.36, blastRadius: 245, hitRadius: 41, speed: 390, scale: 1.20 }
+        special: { color: '#d87825', accent: '#ffe08a', core: '#fff8d9', dark: '#6c3a26', glow: '#ffb84d', damage: 1.36, blastRadius: 245, hitRadius: 41, speed: 390, scale: 1.20 },
+        superBomb: { color: '#d87825', accent: '#ffe08a', core: '#fff8d9', dark: '#6c3a26', glow: '#ffb84d', damage: 1.21, blastWidth: 264, blastHeight: 500, hitRadius: 34, speed: 315, scale: 1.20 }
       } },
       { id: 'apex', name: 'APEX', code: 'A-05', price: 10000, color: '#9cf7ff', stats: { firepower: 5, armor: 5, handling: 4 }, loadout: {
         primary: { color: '#66f5ff', glow: '#2cd9ff', core: '#ffffff', damage: 1.44, speed: 1.16, radius: 4.7, width: 5.8, length: 29 },
-        special: { color: '#168ec7', accent: '#a9ffff', core: '#f3ffff', dark: '#164b70', glow: '#4de9ff', damage: 1.52, blastRadius: 270, hitRadius: 45, speed: 420, scale: 1.28 }
+        special: { color: '#168ec7', accent: '#a9ffff', core: '#f3ffff', dark: '#164b70', glow: '#4de9ff', damage: 1.52, blastRadius: 270, hitRadius: 45, speed: 420, scale: 1.28 },
+        superBomb: { color: '#168ec7', accent: '#a9ffff', core: '#f3ffff', dark: '#164b70', glow: '#4de9ff', damage: 1.29, blastWidth: 282, blastHeight: 500, hitRadius: 36, speed: 335, scale: 1.28 }
       } },
       { id: 'zenith', name: 'ZENITH', code: 'Z-06', price: 15000, color: '#f6c7ff', stats: { firepower: 5, armor: 5, handling: 5 }, loadout: {
         primary: { color: '#ff8cff', glow: '#f04dff', core: '#fffaff', damage: 1.60, speed: 1.24, radius: 5.2, width: 6.4, length: 32 },
-        special: { color: '#d13faf', accent: '#ffd0ff', core: '#fff4ff', dark: '#672552', glow: '#ff6de5', damage: 1.72, blastRadius: 300, hitRadius: 50, speed: 450, scale: 1.36 }
+        special: { color: '#d13faf', accent: '#ffd0ff', core: '#fff4ff', dark: '#672552', glow: '#ff6de5', damage: 1.72, blastRadius: 300, hitRadius: 50, speed: 450, scale: 1.36 },
+        superBomb: { color: '#d13faf', accent: '#ffd0ff', core: '#fff4ff', dark: '#672552', glow: '#ff6de5', damage: 1.38, blastWidth: 300, blastHeight: 500, hitRadius: 38, speed: 355, scale: 1.36 }
       } }
     ],
     missions: [
@@ -252,7 +277,7 @@
     };
   }
   function shipLoadout(id) {
-    const ship = C.ships.find(s => s.id === id), primary = ship?.loadout?.primary || {}, special = ship?.loadout?.special || {};
+    const ship = C.ships.find(s => s.id === id), primary = ship?.loadout?.primary || {}, special = ship?.loadout?.special || {}, superBomb = ship?.loadout?.superBomb || {};
     return {
       primary: {
         color: primary.color || '#8adbfb', glow: primary.glow || primary.color || '#4dcfff', core: primary.core || '#f6ffff',
@@ -263,6 +288,12 @@
         color: special.color || '#d95043', accent: special.accent || '#ffc45c', core: special.core || '#fff3c7', dark: special.dark || '#682c39', glow: special.glow || special.color || '#ff704d',
         damage: clamp(Number(special.damage) || 1, .5, 3), blastRadius: clamp(Number(special.blastRadius) || C.specialMissile.blastRadius, 100, 420),
         hitRadius: clamp(Number(special.hitRadius) || C.specialMissile.hitRadius, 15, 80), speed: clamp(Number(special.speed) || C.specialMissile.speed, 180, 700), scale: clamp(Number(special.scale) || 1, .75, 2)
+      },
+      superBomb: {
+        color: superBomb.color || '#d95043', accent: superBomb.accent || '#ffc45c', core: superBomb.core || '#fff3c7', dark: superBomb.dark || '#682c39', glow: superBomb.glow || superBomb.color || '#ff704d',
+        damage: clamp(Number(superBomb.damage) || 1, .5, 3), blastWidth: clamp(Number(superBomb.blastWidth) || C.superBomb.blastWidth, C.width * .5, C.width),
+        blastHeight: clamp(Number(superBomb.blastHeight) || C.superBomb.blastHeight, 180, C.height), hitRadius: clamp(Number(superBomb.hitRadius) || C.superBomb.hitRadius, 15, 80),
+        speed: clamp(Number(superBomb.speed) || C.superBomb.speed, 180, 700), scale: clamp(Number(superBomb.scale) || 1, .75, 2), shieldSeconds: clamp(Number(superBomb.shieldSeconds) || C.superBomb.shieldSeconds, .5, 4)
       }
     };
   }
@@ -273,7 +304,8 @@
     const ramp = Math.pow(progress, .72);
     return { stage: s, ramp, enemy: 1 + ramp * 2.6, boss: 1 + ramp * 4.8,
       speed: 1 + ramp * .85, spawn: 1 + ramp * .75, score: 1 + ramp * 2.4,
-      attack: 1 + ramp * 1.25, attackRange: 1 + ramp * .75 };
+      attack: 1 + ramp * 1.25, attackRange: 1 + ramp * .75,
+      projectileSpeed: 1 + ramp * 1.05, projectileRadius: 1 + ramp * .30 };
   }
   function stageEnemyTheme(stage = 1) {
     const s = clamp(int(stage, C.totalStages), 1, C.totalStages), band = Math.min(9, Math.floor((s - 1) / Math.max(1, Math.ceil(C.totalStages / 10))));
@@ -290,6 +322,38 @@
       { accent: '#ef72dc', curve: '#f5a5ee', dash: '#ffd2f8', heavy: '#d944c5', body: '#522746', wing: '#c25baf', dark: '#321b3c' }
     ];
     return { ...themes[band], tier: band + 1 };
+  }
+  function stageEnemyStyle(stage = 1, type = 'scout') {
+    const s = clamp(int(stage, C.totalStages), 1, C.totalStages), progress = (s - 1) / Math.max(1, C.totalStages - 1);
+    const offsets = { scout: 0, curveL: 29, curveR: 61, dash: 97, heavy: 137 }, offset = offsets[type] || 0, hue = (s * 37 + offset) % 360;
+    return {
+      variant: s * 11 + offset,
+      accent: `hsl(${hue} 88% 70%)`, body: `hsl(${(hue + 19) % 360} 45% 27%)`, wing: `hsl(${(hue + 345) % 360} 63% 50%)`, core: `hsl(${(hue + 55) % 360} 78% 76%)`, dark: `hsl(${hue} 42% 13%)`,
+      width: .91 + ((s * 17 + offset) % 18) / 100, height: .92 + ((s * 23 + offset) % 16) / 100,
+      tilt: (((s * 13 + offset) % 700) - 350) / 10000, modules: (s + Math.floor(offset / 20)) % 4,
+      pattern: Math.min(3, Math.floor(progress * 4)), patternStrength: progress
+    };
+  }
+  function stageBossStyle(stage = 1) {
+    const s = clamp(int(stage, C.totalStages), 1, C.totalStages), progress = (s - 1) / Math.max(1, C.totalStages - 1);
+    // A deterministic per-stage signature keeps every boss recognizable while
+    // the armor shell and weapon pressure grow continuously across the campaign.
+    return {
+      variant: s,
+      accent: `hsl(${(s * 47) % 360} 82% 70%)`,
+      scale: .94 + ((s * 29) % 17) / 100,
+      width: .92 + ((s * 17) % 19) / 100,
+      height: .94 + ((s * 31) % 15) / 100,
+      tilt: (((s * 13) % 900) - 450) / 10000,
+      armor: 1 + progress * .90,
+      armorLayers: 1 + Math.floor(progress * 3),
+      missileSpeed: 1 + progress * .42,
+      missileRate: 1 + progress * .34,
+      aimShots: 3 + Math.floor(progress * 2),
+      radialBursts: 2 + Math.floor(progress * 2),
+      radialCount: 8 + Math.floor(progress * 4),
+      sweepShots: 11 + Math.floor(progress * 9)
+    };
   }
   function makeMissions(day) {
     const random = rng(hash(day));
@@ -451,7 +515,7 @@
       this.persist();
     }
   }
-  CC.Core = { clamp, int, clone, hash, rng, weighted, dateKey, multiplier, makePlayerId, shipStats, shipLoadout, stageDifficulty, stageEnemyTheme, makeMissions, defaults, normalize, ensureDay, finalScore, applyRun, claimMission, buyShip, Pool, Store };
+  CC.Core = { clamp, int, clone, hash, rng, weighted, dateKey, multiplier, makePlayerId, shipStats, shipLoadout, stageDifficulty, stageEnemyTheme, stageEnemyStyle, stageBossStyle, makeMissions, defaults, normalize, ensureDay, finalScore, applyRun, claimMission, buyShip, Pool, Store };
   if (typeof module !== 'undefined' && module.exports) module.exports=CC.Core;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -461,7 +525,7 @@
   'use strict';
   const en = {
      division:'ARCADE FLIGHT DIVISION', local:'LOCAL PROFILE', memory:'SESSION ONLY', globalLinked:'GLOBAL LINKED', globalLinkRequired:'ITCH LOGIN NEEDED', subtitle:'No clock. Make every stage count.',
-     intro:'Hold Q to charge KI, release it to fire a straight special missile, and destroy the boss.', launch:'LAUNCH MISSION', newCampaign:'NEW CAMPAIGN', campaignScore:'CAMPAIGN SCORE', ready:'READY FOR TAKEOFF', mission:'DAILY MISSIONS', campaign:'1,000-STAGE CAMPAIGN', stage:'STAGE', stages:'STAGES', currentStage:'CURRENT STAGE', overallScore:'OVERALL SCORE', overallRank:'OVERALL RANK',
+     intro:'Hold Q to charge KI, release it to fire a straight special missile. Collect a Super Bomb and press E to detonate it with a shield.', launch:'LAUNCH MISSION', newCampaign:'NEW CAMPAIGN', campaignScore:'CAMPAIGN SCORE', ready:'READY FOR TAKEOFF', mission:'DAILY MISSIONS', campaign:'1,000-STAGE CAMPAIGN', stage:'STAGE', stages:'STAGES', currentStage:'CURRENT STAGE', overallScore:'OVERALL SCORE', overallRank:'OVERALL RANK',
     localDate:'Resets at local midnight', claim:'CLAIM', claimed:'CLAIMED', reward:'REWARD', best:'PERSONAL BEST', bestNote:'Your next flight could be your best.',
     hangar:'HANGAR', records:'FLIGHT RECORDS', settings:'SETTINGS', equipped:'EQUIPPED', equip:'EQUIP SHIP', owned:'OWNED', unlock:'UNLOCK', locked:'LOCKED',
     chooseShip:'Choose your signature.', cosmetic:'Every ship has a different combat profile. Pick your advantage.',
@@ -477,7 +541,7 @@
     confirmBuy:'UNLOCK & EQUIP', shipUnlocked:'{name} unlocked and equipped.', shipEquipped:'{name} equipped.',
      recordsTitle:'Every flight leaves a mark.', recordsNote:'Your overall ranking across every stage, stored in this browser.', globalRanking:'GLOBAL SCORE RANKING', globalNote:'Total score = highest stage × cumulative score for the itch.io account.', globalOffline:'ONLINE LEADERBOARD NOT CONNECTED', globalOfflineNote:'This standalone HTML build is ready for a leaderboard API. Local ranking remains available below.', globalLoading:'LOADING GLOBAL SCORES…', globalEmpty:'No global scores yet.', globalRetry:'REFRESH GLOBAL RANKING', player:'PLAYER',
     noRecords:'Your first sortie starts here.', noRecordsDesc:'Complete a mission to log your first score.', flights:'FLIGHTS', kills:'ENEMIES', bosses:'BOSSES',
-     score:'SCORE', time:'ELAPSED', hull:'HULL', power:'POWER', shield:'SHIELD', readyShield:'READY', activeShield:'ACTIVE', autoFire:'AUTO FIRE', sector:'SECTOR', ki:'KI', specialReady:'RELEASE Q TO FIRE', charging:'HOLD Q TO CHARGE', specialMissile:'SPECIAL MISSILE', specialHelp:'HOLD Q · RELEASE TO FIRE',
+     score:'SCORE', time:'ELAPSED', hull:'HULL', power:'POWER', shield:'SHIELD', readyShield:'READY', activeShield:'ACTIVE', autoFire:'AUTO FIRE', sector:'SECTOR', ki:'KI', specialReady:'RELEASE Q TO FIRE', charging:'HOLD Q TO CHARGE', specialMissile:'SPECIAL MISSILE', specialHelp:'HOLD Q · RELEASE TO FIRE', superBomb:'SUPER BOMB', superBombReady:'E · FIRE SUPER BOMB', superBombHelp:'Collect the bomb, then press E to fire it with a shield.', superBombFired:'SUPER BOMB FIRED · SHIELD ACTIVE',
     pause:'PAUSE', paused:'FLIGHT PAUSED', pauseDesc:'Take a breath. Your mission will wait.', resume:'RESUME FLIGHT', restart:'RESTART', returnLobby:'RETURN TO BASE',
     abortTitle:'Abandon this flight?', abortBody:'This unfinished run will not earn coins, a record, or mission progress.', abandon:'ABANDON', cancel:'CANCEL',
     restartTitle:'Start a new flight?', restartBody:'This unfinished run will be discarded. Your saved progress is safe.',
@@ -486,15 +550,15 @@
      completeSub:'Boss down. The next stage is unlocked.', lostSub:'Regroup. Reload. Go again.', newBest:'NEW PERSONAL BEST', finalScore:'FINAL SCORE',
     maxCombo:'MAX COMBO', earned:'COINS EARNED', survived:'FLIGHT TIME', defeated:'DESTROYED', escaped:'NOT DESTROYED', retry:'FLY AGAIN',
      coinsSaved:'Coins already added to your balance.', noAds:'No ads. No paid stat boosts.', localOnly:'Settings and offline records stay on this browser.', rankingLocal:'LOCAL OVERALL RANKING', rankRuns:'Ranked by stage score across all of your runs.',
-    help:'FLIGHT MANUAL', controls:'CONTROLS', move:'MOVE', keyboard:'Arrow keys / WASD', drag:'Drag anywhere in the playfield',
+    help:'FLIGHT MANUAL', controls:'CONTROLS', move:'MOVE', keyboard:'Arrow keys / WASD', mouse:'MOUSE', mouseMove:'Drag the playfield to move', drag:'Drag anywhere in the playfield',
     shieldHelp:'Space / Shift or the shield button', pauseHelp:'Escape / P', focusHelp:'Click or tap the game once to give it keyboard focus.',
      rules:'MISSION BRIEFING', rule1:'There is no time limit. Defeat the boss to clear the stage.',
      rule2:'Clear the stage to unlock the next one. There are 1,000 stages, and every stage gets harder.',
     rule3:'Your shield lasts 3 seconds and recharges every 20 seconds.',
-     rule4:'Chain kills within 2 seconds to build a combo up to ×2. Taking a hit halves your combo.', rule5:'Hold Q to charge KI. When full, release Q to launch a straight special missile from your current position.',
-    items:'SUPPLY CATALOG', powerItem:'Weapon level +1', hpItem:'Restore 1 hull point', magnetItem:'Attract coin stars for 5 seconds', shieldItem:'3 seconds of protection',
+     rule4:'Chain kills within 2 seconds to build a combo up to ×2. Taking a hit halves your combo.', rule5:'Hold Q to charge KI. When full, release Q to launch a straight special missile from your current position. Collect a Super Bomb and press E to fire a wide blast with a shield.',
+    items:'SUPPLY CATALOG', powerItem:'Weapon level +1', hpItem:'Restore 1 hull point', magnetItem:'Attract coin stars for 5 seconds', shieldItem:'3 seconds of protection', superBombItem:'Wide blast bomb · press E to fire',
     starsItem:'Stars: 1 / 2 / 4 coins, plus 10 points per coin',
-    t1:'Move your ship', t1b:'Drag the playfield or use Arrow keys / WASD.', t2:'Let it fire', t2b:'Line up with the target. Your weapons fire automatically.',
+    t1:'Move your ship', t1b:'Drag the playfield with your mouse or use Arrow keys / WASD.', t2:'Let it fire', t2b:'Line up with the target. Your weapons fire automatically.',
     t3:'Raise your shield', t3b:'Press Space or tap SHIELD for 3 seconds of protection.', training:'FLIGHT TRAINING', skip:'SKIP TRAINING', trainingDone:'TRAINING COMPLETE',
     trainingNote:'Practice only. No scores or coins are saved.', launchIn:'LAUNCH IN', resumeIn:'RESUMING',
     settingsTitle:'Tune your cockpit.', music:'Music', sound:'Sound effects', vibration:'Vibration (supported devices)', reduced:'Reduced effects', itchAccount:'ITCH.IO ACCOUNT', connectItch:'CONNECT ITCH.IO', disconnectItch:'DISCONNECT', itchNotConnected:'Connect your itch.io account to submit global scores.', itchConnected:'ITCH.IO CONNECTED', itchConnectedAs:'Signed in as @{name}', itchId:'ITCH.IO ID', itchLoginFailed:'ITCH.IO account connection failed.', itchLoginRequired:'Connect itch.io before your next flight to submit global scores.',
@@ -521,7 +585,7 @@
   const ko = {
      newCampaign:'새 캠페인 시작', campaignScore:'캠페인 점수',
      division:'아케이드 비행 전대', local:'로컬 저장', memory:'임시 저장', subtitle:'시간 제한 없이, 모든 스테이지에 도전하세요.', campaign:'1,000 스테이지 캠페인', stage:'스테이지', stages:'스테이지', currentStage:'현재 스테이지', overallScore:'종합 점수', overallRank:'종합 순위',
-     intro:'Q를 눌러 기를 모으고, 손을 떼 특수 미사일을 발사해 보스를 격파하세요.', launch:'전투 시작', ready:'출격 준비 완료', mission:'오늘의 미션',
+     intro:'Q를 눌러 기를 모으고 손을 떼 특수 미사일을 발사하세요. 슈퍼밤을 먹은 뒤 E를 누르면 쉴드와 함께 폭발합니다.', launch:'전투 시작', ready:'출격 준비 완료', mission:'오늘의 미션',
     localDate:'기기 시간 기준 자정에 초기화', claim:'받기', claimed:'수령 완료', reward:'보상', best:'나의 최고 점수', bestNote:'다음 비행에서 기록을 새로 써보세요.',
     hangar:'격납고', records:'비행 기록', settings:'설정', equipped:'장착 중', equip:'장착하기', owned:'보유 중', unlock:'해금하기', locked:'미보유',
     chooseShip:'나만의 기체를 선택하세요.', cosmetic:'기체마다 전투 특성이 달라요. 나에게 맞는 장점을 선택하세요.',
@@ -537,7 +601,7 @@
     confirmBuy:'해금하고 장착', shipUnlocked:'{name} 기체를 해금하고 장착했어요.', shipEquipped:'{name} 기체를 장착했어요.',
     recordsTitle:'모든 비행에는 기록이 남아요.', recordsNote:'모든 스테이지의 전투 기록을 점수순으로 보여줘요.', globalRanking:'글로벌 점수 랭킹', globalNote:'총점수 = 최고 스테이지 × 계정 누적점수로 계산해요. 점수를 저장하려면 itch.io를 연결하세요.', globalOffline:'온라인 랭킹 서버 미연결', globalOfflineNote:'이 단일 HTML 버전은 랭킹 API 연동을 지원해요. 아래에서 로컬 랭킹을 확인할 수 있어요.', globalLoading:'글로벌 점수 불러오는 중…', globalEmpty:'아직 글로벌 점수가 없어요.', globalRetry:'글로벌 랭킹 새로고침', player:'플레이어',
     noRecords:'첫 번째 출격을 기다리고 있어요.', noRecordsDesc:'한 번의 전투를 마치면 점수가 기록돼요.', flights:'비행 횟수', kills:'적 처치', bosses:'보스 처치',
-     score:'점수', time:'경과 시간', hull:'체력', power:'파워', shield:'쉴드', readyShield:'준비', activeShield:'작동 중', autoFire:'자동 발사', sector:'구간', ki:'기', specialReady:'Q를 떼면 발사', charging:'Q를 누르는 중', specialMissile:'특수 미사일', specialHelp:'Q 누르기 · 떼면 발사',
+     score:'점수', time:'경과 시간', hull:'체력', power:'파워', shield:'쉴드', readyShield:'준비', activeShield:'작동 중', autoFire:'자동 발사', sector:'구간', ki:'기', specialReady:'Q를 떼면 발사', charging:'Q를 누르는 중', specialMissile:'특수 미사일', specialHelp:'Q 누르기 · 떼면 발사', superBomb:'슈퍼밤', superBombReady:'E · 슈퍼밤 발사', superBombHelp:'슈퍼밤을 먹은 뒤 E를 누르면 쉴드와 함께 발사돼요.', superBombFired:'슈퍼밤 발사 · 쉴드 작동',
     pause:'일시정지', paused:'비행 일시정지', pauseDesc:'잠깐 쉬어가세요. 전투는 기다려줄게요.', resume:'계속하기', restart:'다시 시작', returnLobby:'로비로',
     abortTitle:'이번 비행을 중단할까요?', abortBody:'완료하지 않은 전투의 코인, 점수, 미션 진행은 저장되지 않아요.', abandon:'중단하기', cancel:'취소',
     restartTitle:'새로운 비행을 시작할까요?', restartBody:'현재 전투는 취소돼요. 이전에 저장된 기록은 유지돼요.',
@@ -546,15 +610,15 @@
      completeSub:'보스를 격파했어요. 다음 스테이지가 열렸어요.', lostSub:'다시 정비하고, 더 멀리 날아보세요.', newBest:'최고 기록 갱신', finalScore:'최종 점수',
     maxCombo:'최대 콤보', earned:'획득 코인', survived:'비행 시간', defeated:'격파 성공', escaped:'미격파', retry:'다시 도전',
      coinsSaved:'획득 코인이 잔액에 반영됐어요.', noAds:'광고 없음 · 유료 능력치 없음', localOnly:'이 브라우저에만 저장돼요.', rankingLocal:'로컬 종합 랭킹', rankRuns:'모든 전투 기록을 스테이지 점수순으로 정렬해요.',
-    help:'비행 매뉴얼', controls:'조작 방법', move:'이동', keyboard:'방향키 / WASD', drag:'게임 영역을 손가락으로 드래그',
+    help:'비행 매뉴얼', controls:'조작 방법', move:'이동', keyboard:'방향키 / WASD', mouse:'마우스', mouseMove:'게임 영역을 드래그해 이동', drag:'게임 영역을 손가락으로 드래그',
     shieldHelp:'Space / Shift 또는 쉴드 버튼', pauseHelp:'Escape / P', focusHelp:'키보드가 반응하지 않으면 게임을 한 번 클릭하세요.',
      rules:'전투 안내', rule1:'시간 제한은 없어요. 보스를 격파하면 스테이지가 클리어돼요.',
      rule2:'스테이지를 클리어하면 다음 단계가 열려요. 총 1,000단계이며 점점 어려워져요.',
     rule3:'쉴드는 3초 동안 무적이며, 재사용 대기시간은 20초예요.',
-     rule4:'2초 안에 연속 처치하면 최대 2배 콤보가 쌓여요. 피격되면 콤보가 절반으로 줄어요.', rule5:'Q를 누르고 있으면 기가 충전돼요. 가득 찬 뒤 Q를 떼면 유도 특수 미사일이 발사돼요.',
-    items:'보급 아이템', powerItem:'무기 파워 1단계 증가', hpItem:'체력 1칸 회복', magnetItem:'5초 동안 코인 별 흡수', shieldItem:'3초 동안 무적',
+     rule4:'2초 안에 연속 처치하면 최대 2배 콤보가 쌓여요. 피격되면 콤보가 절반으로 줄어요.', rule5:'Q를 누르고 있으면 기가 충전돼요. 가득 찬 뒤 Q를 떼면 특수 미사일이 발사돼요. 슈퍼밤을 먹고 E를 누르면 넓은 폭발과 쉴드가 발동돼요.',
+    items:'보급 아이템', powerItem:'무기 파워 1단계 증가', hpItem:'체력 1칸 회복', magnetItem:'5초 동안 코인 별 흡수', shieldItem:'3초 동안 무적', superBombItem:'넓은 범위 폭탄 · E로 발사',
     starsItem:'별: 1 / 2 / 4코인, 코인당 점수 10점',
-    t1:'기체를 움직여보세요', t1b:'게임 영역을 드래그하거나 방향키 / WASD를 누르세요.', t2:'공격은 자동이에요', t2b:'적과 위치를 맞춰보세요. 탄환은 자동으로 나가요.',
+    t1:'기체를 움직여보세요', t1b:'게임 영역을 마우스로 드래그하거나 방향키 / WASD를 누르세요.', t2:'공격은 자동이에요', t2b:'적과 위치를 맞춰보세요. 탄환은 자동으로 나가요.',
     t3:'쉴드를 사용해보세요', t3b:'Space 또는 쉴드를 누르면 3초 동안 보호받아요.', training:'비행 훈련', skip:'훈련 건너뛰기', trainingDone:'훈련 완료',
     trainingNote:'훈련 점수와 코인은 저장되지 않아요.', launchIn:'출격까지', resumeIn:'다시 시작',
     settingsTitle:'나에게 맞는 조작으로.', music:'배경 음악', sound:'효과음', vibration:'진동 (지원 기기)', reduced:'효과 줄이기', itchAccount:'ITCH.IO 계정', connectItch:'ITCH.IO 연결', disconnectItch:'연결 해제', itchNotConnected:'글로벌 점수를 저장하려면 itch.io 계정을 연결하세요.', itchConnected:'ITCH.IO 연결됨', itchConnectedAs:'로그인 계정: @{name}', itchId:'ITCH.IO ID', itchLoginFailed:'ITCH.IO 계정 연결에 실패했어요.', itchLoginRequired:'다음 전투의 글로벌 점수를 저장하려면 itch.io를 연결하세요.',
@@ -647,38 +711,53 @@
   }
   function enemy(c,e,time=0) {
     const heavy=e.type==='heavy',dash=e.type==='dash',curve=e.type.startsWith('curve');
+    const style=e.style||{};
     const theme=e.theme||{accent:'#ff768e',curve:'#ffb074',dash:'#ffd878',heavy:'#ff6873',body:'#502c40',wing:'#d56c82',dark:'#20182e'};
-    const accent=heavy?theme.heavy:dash?theme.dash:curve?theme.curve:theme.accent;
-    c.save();c.translate(e.x,e.y);c.rotate((e.bank||0)+Math.PI);
-    const s=heavy?1.02:dash?.56:.61;c.scale(s,s);
+    const accent=style.accent||(heavy?theme.heavy:dash?theme.dash:curve?theme.curve:theme.accent),body=style.body||theme.body,wing=style.wing||theme.wing,dark=style.dark||theme.dark;
+    c.save();c.translate(e.x,e.y);c.rotate((e.bank||0)+Math.PI+(style.tilt||0));
+    const s=heavy?1.02:dash?.56:.61,w=heavy?43:dash?22:curve?36:31;c.scale(s,s);
+    c.scale(style.width||1,style.height||1);
     if(e.flash>0) c.globalAlpha=.55;
-    glow(c,0,23,25,accent+'33');
+    glow(c,0,23,25,accent);
     if(heavy) {
-      path(c,[[-18,-31],[-37,-8],[-43,20],[-30,31],[-12,24],[0,33],[12,24],[30,31],[43,20],[37,-8],[18,-31]],theme.body,theme.heavy,1.4);
-      [-1,1].forEach(s=>{path(c,[[s*17,-26],[s*30,-4],[s*34,18],[s*18,16],[s*10,-8]],theme.wing);
+      path(c,[[-18,-31],[-37,-8],[-43,20],[-30,31],[-12,24],[0,33],[12,24],[30,31],[43,20],[37,-8],[18,-31]],body,accent,1.4);
+      [-1,1].forEach(s=>{path(c,[[s*17,-26],[s*30,-4],[s*34,18],[s*18,16],[s*10,-8]],wing);
         line(c,[[s*20,-15],[s*24,-7]],accent,4);line(c,[[s*22,23],[s*30,23]],accent,4);
-        path(c,[[s*30,-7],[s*36,-4],[s*37,11],[s*31,9]],theme.dark);});
-      path(c,[[0,-33],[-10,-8],[-8,21],[0,28],[8,21],[10,-8]],theme.curve);
+        path(c,[[s*30,-7],[s*36,-4],[s*37,11],[s*31,9]],dark);});
+      path(c,[[0,-33],[-10,-8],[-8,21],[0,28],[8,21],[10,-8]],style.core||theme.curve);
     } else {
-      const w=dash?22:curve?36:31;
-      path(c,[[0,-40],[-10,-11],[-w,6],[-w+3,24],[-12,18],[0,30],[12,18],[w-3,24],[w,6],[10,-11]],theme.dark,accent,1.3);
-      path(c,[[-8,-8],[-w+5,9],[-w+7,16],[-10,10]],theme.wing);
-      path(c,[[8,-8],[w-5,9],[w-7,16],[10,10]],theme.body);
+      path(c,[[0,-40],[-10,-11],[-w,6],[-w+3,24],[-12,18],[0,30],[12,18],[w-3,24],[w,6],[10,-11]],dark,accent,1.3);
+      path(c,[[-8,-8],[-w+5,9],[-w+7,16],[-10,10]],wing);
+      path(c,[[8,-8],[w-5,9],[w-7,16],[10,10]],body);
       path(c,[[0,-38],[-5,-6],[-5,12],[0,20],[5,12],[5,-6]],accent);
       if(curve) line(c,[[-22,17],[-15,21],[15,21],[22,17]],'#ffe0ba',2);
       if(dash) {line(c,[[-12,0],[-12,28]],'#fff1bd',2);line(c,[[12,0],[12,28]],'#fff1bd',2);}
     }
-    path(c,[[0,-19],[-4,-7],[0,2],[4,-7]],'#20182e');
-    glow(c,0,5,14,accent+'66');
+    path(c,[[0,-19],[-4,-7],[0,2],[4,-7]],dark);
+    glow(c,0,5,14,accent);
     c.fillStyle='#ffe4df';c.fillRect(-2,3,4,7);
+    const modules=style.modules||0;
+    for(let i=0;i<modules;i++){
+      const side=i%2?-1:1,offset=w+(i%3)*5,y=-6+(i%4)*8;
+      c.fillStyle=accent;c.fillRect(side*offset-side*4,y,side*8,4);c.fillStyle=dark;c.fillRect(side*offset-side*2,y+1,side*4,2);
+    }
     c.restore();
     if(heavy&&e.hp<e.maxHp){c.fillStyle='#452c3d';c.fillRect(e.x-24,e.y-40,48,3);c.fillStyle='#ff8793';c.fillRect(e.x-24,e.y-40,48*e.hp/e.maxHp,3);}
   }
   function boss(c,b,time=0) {
-    c.save();c.translate(b.x,b.y);
+    const style=b.style||{};c.save();c.translate(b.x,b.y);c.rotate(style.tilt||0);c.scale(style.width||1,style.height||1);
     const theme=b.theme||{heavy:'#f3ac79',body:'#293745',wing:'#668088',dark:'#16212e',curve:'#cc8a67'};
-    const accent=b.hp<=360?'#ff6577':theme.heavy;
-    glow(c,0,10,112,accent+'1b');
+    const accent=b.hp<=b.maxHp*.3?'#ff6577':style.accent||theme.heavy;
+    glow(c,0,10,112,accent);
+    for(let i=0;i<(style.armorLayers||1);i++){
+      const grow=1+i*.075;c.globalAlpha=.30+i*.08;c.strokeStyle=accent;c.lineWidth=1.5+i*.55;c.beginPath();c.ellipse(0,4,101*grow,64*grow,.02*Math.sin(style.variant+i),0,TAU);c.stroke();
+    }
+    c.globalAlpha=1;
+    const modules=(style.variant||1)%5;
+    for(let i=0;i<modules;i++){
+      const side=i%2?-1:1,offset=42+(i%3)*13,y=-18+(i%4)*12;
+      c.fillStyle=accent;c.fillRect(side*offset- side*5,y,side*10,5);c.fillStyle=theme.dark;c.fillRect(side*offset- side*2,y+1,side*4,3);
+    }
     [-1,1].forEach(s=>{
       path(c,[[s*15,-34],[s*55,-41],[s*85,-17],[s*93,10],[s*72,31],[s*47,18],[s*25,29]],theme.body,theme.wing,1.2);
       path(c,[[s*29,-23],[s*54,-31],[s*76,-14],[s*74,3],[s*48,0]],theme.wing);
@@ -705,6 +784,14 @@
       const n=Number(i.type.slice(4)),col=n===4?'#8feacc':n===2?'#9cdbff':'#ffda83';
       glow(c,0,0,19,col+'36');star(c,0,0,10+n*.8,col,'#fff5cf');
       if(n>1){c.fillStyle='#192839';c.font='bold 9px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(n,0,1);}
+    }else if(i.type==='superBomb'){
+      const col='#ff8a5d',accent='#ffd176',dark='#7f3040';
+      glow(c,0,0,28,col+'55');
+      c.fillStyle=accent+'dd';c.beginPath();c.moveTo(-7,7);c.quadraticCurveTo(-14,18,-7,25);c.lineTo(-3,20);c.lineTo(0,35);c.lineTo(3,20);c.lineTo(7,25);c.quadraticCurveTo(14,18,7,7);c.closePath();c.fill();
+      c.fillStyle=dark;c.fillRect(-2,-18,4,5);
+      const shell=c.createRadialGradient(-4,-6,1,0,0,13);shell.addColorStop(0,'#fff5cf');shell.addColorStop(.3,accent);shell.addColorStop(.7,col);shell.addColorStop(1,dark);
+      c.fillStyle=shell;c.beginPath();c.arc(0,0,12,0,TAU);c.fill();c.strokeStyle='#ffd6a0';c.lineWidth=1.4;c.stroke();
+      c.fillStyle='#fff5cf';c.beginPath();c.arc(-4,-5,3.5,0,TAU);c.fill();
     }else{
       const col=i.type==='power'?'#9bdcff':i.type==='hp'?'#ff8ba0':i.type==='magnet'?'#cab0ff':'#8cf0dd';
       glow(c,0,0,23,col+'44');path(c,[[0,-15],[12,-7],[12,8],[0,15],[-12,8],[-12,-7]],'#0d2437',col,1.5);
@@ -830,8 +917,9 @@
       this.shipStats=K.shipStats(planeId);
       this.shipLoadout=K.shipLoadout(planeId);
       const startingPower=K.clamp(K.int(power,C.player.maxPower)||1,1,C.player.maxPower);
-      this.p={x:C.width/2,y:C.height-133,hp:this.shipStats.armor,maxHp:this.shipStats.armor,power:startingPower,ki:0,invincible:0,shield:0,cooldown:0,magnet:0,bank:0};
-      this.stats={combatScore:0,coinScore:0,coins:0,kills:0,specialMissiles:0,killsByType:{scout:0,curveL:0,curveR:0,dash:0,heavy:0},combo:0,maxCombo:0,maxPower:startingPower,shieldUses:0,bossKilled:false};
+      this.p={x:C.width/2,y:C.height-133,hp:this.shipStats.armor,maxHp:this.shipStats.armor,power:startingPower,ki:0,invincible:0,shield:0,cooldown:0,magnet:0,superBomb:0,bank:0};
+      this.stats={combatScore:0,coinScore:0,coins:0,kills:0,specialMissiles:0,superBombs:0,killsByType:{scout:0,curveL:0,curveR:0,dash:0,heavy:0},combo:0,maxCombo:0,maxPower:startingPower,shieldUses:0,bossKilled:false};
+      this.blasts=[];
       this.elapsed=0;this.spawnAt=.45;this.nextShot=0;this.comboClock=0;this.boss=null;this.bossSpawned=false;this.firstPower=false;this.supportAt=52.5;
       this.planeId=planeId;this.shake=0;this.hitFlash=0;this.target=null;this.lastMove=0;this.moveTime=0;this.result=null;this.banner=null;this.visualTime=0;
       this.runId=root.crypto?.randomUUID?.()||`run-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -923,17 +1011,18 @@
       this.audio.sfx('shot');
     }
     spawnEnemy(type,x,y,training=false){
-      const d=C.enemies[type],wave=C.waves[Math.min(4,Math.floor(this.elapsed/10))],theme=K.stageEnemyTheme(this.stage),attack=this.difficulty.attack;
+      const d=C.enemies[type],wave=C.waves[Math.min(4,Math.floor(this.elapsed/10))],theme=K.stageEnemyTheme(this.stage),style=K.stageEnemyStyle(this.stage,type),attack=this.difficulty.attack;
       const px=x??(34+this.random()*(C.width-68));
       const hp=Math.ceil(d.hp*this.difficulty.enemy);
       return this.pools.enemies.take({type,x:px,y:y??(type==='dash'?100:-45),baseX:px,hp,maxHp:hp,r:d.radius,
         age:0,speed:d.speed*C.browserTuning.worldUnitsToPixels*wave.speed*this.difficulty.speed,fireAt:type==='scout'?Math.max(.55,1.35/attack):Math.max(.65,1.9/attack),fireInterval:type==='scout'?Math.max(.55,1.35/attack):Math.max(.42,1.65/attack),
-        attackRange:this.difficulty.attackRange,theme,shots:0,flash:0,bank:0,training});
+        attackRange:this.difficulty.attackRange,theme,style,shots:0,flash:0,bank:0,training});
     }
     hostile(x,y,angle,speed=C.browserTuning.enemyBulletSpeed,style=0){
       const range=this.difficulty.attackRange;
-      speed*=this.difficulty.speed*this.difficulty.attack;
-      const radius=(style===1?5.5:4.5)*(.85+range*.15);
+      const bossPressure=this.boss?.active?this.boss.style?.missileSpeed||1:1;
+      speed*=this.difficulty.speed*this.difficulty.attack*this.difficulty.projectileSpeed*bossPressure;
+      const radius=(style===1?5.5:4.5)*(.85+range*.15)*this.difficulty.projectileRadius;
       this.pools.hostile.take({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:radius,range,style});
     }
     updateEnemies(dt){
@@ -942,20 +1031,36 @@
         if(!e.active)continue;e.age+=dt;e.flash=Math.max(0,e.flash-dt);
         if(!e.training){
           if(e.type==='dash'){
-            if(e.age>.4)e.y+=e.speed*2*dt;
+            if(e.age>.4)e.y+=e.speed*(2+e.style.patternStrength*.55)*dt;
+            if(e.style.pattern>=2)e.x=K.clamp(e.baseX+Math.sin(e.age*3.2)*24*e.style.patternStrength,22,C.width-22);
           }else{
             e.y+=e.speed*dt;
             if(e.type==='curveL'||e.type==='curveR'){
-              const sign=e.type==='curveL'?-1:1;e.x=K.clamp(e.baseX+sign*(1-Math.cos(e.age*1.8))*42,22,C.width-22);e.bank=sign*Math.sin(e.age*1.8)*.3;
+              const sign=e.type==='curveL'?-1:1,curveSpeed=1.8*(1+e.style.patternStrength*.28),curveWidth=42*(1+e.style.patternStrength*.25);e.x=K.clamp(e.baseX+sign*(1-Math.cos(e.age*curveSpeed))*curveWidth,22,C.width-22);e.bank=sign*Math.sin(e.age*curveSpeed)*(.3+e.style.patternStrength*.12);
             }
           }
           const attackRange=this.difficulty.attackRange;
           if(e.y>115-(attackRange-1)*50&&e.y<530+(attackRange-1)*120&&e.age>=e.fireAt){
             const a=Math.atan2(p.y-e.y,p.x-e.x);
-            if(e.type==='scout'){this.hostile(e.x,e.y+17,a);e.shots++;e.fireAt=e.age+e.fireInterval;}
+            const pattern=e.style.pattern;
+            if(e.type==='scout'){
+              this.hostile(e.x,e.y+17,a);
+              if(pattern>=1)this.hostile(e.x,e.y+17,a+(e.x<p.x?-.12:.12)*(1+e.style.patternStrength),128);
+              if(pattern>=3)this.hostile(e.x,e.y+17,a-(e.x<p.x?-.20:.20),120);
+              e.shots++;e.fireAt=e.age+e.fireInterval;
+            }
+            if(e.type==='curveL'||e.type==='curveR'){
+              if(pattern>=1){const side=e.type==='curveL'?-1:1;this.hostile(e.x,e.y+20,a+side*.16*(1+e.style.patternStrength),122);if(pattern>=2)this.hostile(e.x,e.y+20,a-side*.20,112);}
+              e.shots++;e.fireAt=e.age+e.fireInterval;
+            }
+            if(e.type==='dash'){
+              if(pattern>=2){this.hostile(e.x,e.y+20,a,166,1);if(pattern>=3)this.hostile(e.x,e.y+20,a+(e.x<p.x?-.24:.24),142,0);}
+              e.shots++;e.fireAt=e.age+e.fireInterval;
+            }
             if(e.type==='heavy'){
-              const spread=.22*attackRange;
-              [-spread,0,spread].forEach(d=>this.hostile(e.x,e.y+25,a+d,138,1));e.fireAt=e.age+e.fireInterval;
+              const spread=.22*attackRange*(1+pattern*.16+e.style.patternStrength*.10),volley=3+pattern;
+              for(let i=0;i<volley;i++){const offset=i-(volley-1)/2;this.hostile(e.x,e.y+25,a+offset*spread/(Math.max(1,volley-1)/2),138-(pattern*7),1);}
+              e.shots++;e.fireAt=e.age+e.fireInterval;
             }
           }
           if(e.y>C.height+65||e.x<-60||e.x>C.width+60){e.active=false;continue;}
@@ -966,31 +1071,33 @@
     }
     spawnBoss(){
       this.bossSpawned=true;
-      const hp=Math.ceil(C.boss.hp*this.difficulty.boss);
-      this.boss={active:true,x:C.width/2,y:-115,hp,maxHp:hp,age:0,phase:'entry',clock:0,shots:0,flash:0,enraged:false,aimX:this.p.x,aimY:this.p.y,theme:K.stageEnemyTheme(this.stage)};
+      const style=K.stageBossStyle(this.stage),hp=Math.ceil(C.boss.hp*this.difficulty.boss*style.armor);
+      this.boss={active:true,x:C.width/2,y:-115,hp,maxHp:hp,age:0,phase:'entry',clock:0,shots:0,flash:0,enraged:false,aimX:this.p.x,aimY:this.p.y,theme:K.stageEnemyTheme(this.stage),style,
+        aimShots:style.aimShots,radialBursts:style.radialBursts,radialCount:style.radialCount,sweepShots:style.sweepShots};
       this.message('bossWarning',2);this.audio.sfx('warning');this.cb.haptic?.([35,40,35]);
     }
     bossPhase(phase){const b=this.boss;b.phase=phase;b.clock=0;b.shots=0;if(phase==='aimWarn'){b.aimX=this.p.x;b.aimY=this.p.y;}}
     updateBoss(dt){
       const b=this.boss;b.age+=dt;b.clock+=dt;b.flash=Math.max(0,b.flash-dt);
       if(b.hp<=b.maxHp*.3&&!b.enraged){b.enraged=true;this.message('enrage',1.2);this.audio.sfx('warning');}
-      b.x=C.width/2+Math.sin(b.age*.92)*78;
+      const attack=this.difficulty.attack*(b.style?.missileRate||1);
+      b.x=C.width/2+Math.sin(b.age*(.92+(b.style?.variant%7)*.025))*78;
       if(b.phase==='entry'){b.y+=370*dt;if(b.y>=161){b.y=161;this.bossPhase('aimWarn');}return;}
       b.y=161+Math.sin(b.age*1.2)*7;
       switch(b.phase){
-        case 'aimWarn':if(b.clock>=C.boss.aimedWarning/this.difficulty.attack)this.bossPhase('aimFire');break;
+        case 'aimWarn':if(b.clock>=C.boss.aimedWarning/attack)this.bossPhase('aimFire');break;
         case 'aimFire':
-          if(b.shots<3&&b.clock>=b.shots*C.boss.aimedSpacing/this.difficulty.attack){this.hostile(b.x,b.y+36,Math.atan2(b.aimY-b.y,b.aimX-b.x),190,1);b.shots++;}
-          if(b.clock>.65/this.difficulty.attack)this.bossPhase('radialWarn');break;
-        case 'radialWarn':if(b.clock>.35/this.difficulty.attack)this.bossPhase('radialFire');break;
+          if(b.shots<b.aimShots&&b.clock>=b.shots*C.boss.aimedSpacing/attack){this.hostile(b.x,b.y+36,Math.atan2(b.aimY-b.y,b.aimX-b.x),190,1);b.shots++;}
+          if(b.clock>.65/attack)this.bossPhase('radialWarn');break;
+        case 'radialWarn':if(b.clock>.35/attack)this.bossPhase('radialFire');break;
         case 'radialFire':
-          if(b.shots<2&&b.clock>=b.shots*.32/this.difficulty.attack){for(let i=0;i<8;i++)this.hostile(b.x,b.y+8,i*TAU/8+Math.PI/8+b.shots*.16,137,1);b.shots++;}
-          if(b.clock>.66/this.difficulty.attack)this.bossPhase('sweepWarn');break;
-        case 'sweepWarn':if(b.clock>=C.boss.sweepWarning/this.difficulty.attack)this.bossPhase('sweepFire');break;
+          if(b.shots<b.radialBursts&&b.clock>=b.shots*.32/attack){for(let i=0;i<b.radialCount;i++)this.hostile(b.x,b.y+8,i*TAU/b.radialCount+Math.PI/8+b.shots*.16,137,1);b.shots++;}
+          if(b.clock>.66/attack)this.bossPhase('sweepWarn');break;
+        case 'sweepWarn':if(b.clock>=C.boss.sweepWarning/attack)this.bossPhase('sweepFire');break;
         case 'sweepFire':
-          if(b.shots<11&&b.clock>=b.shots*.072/this.difficulty.attack){const n=b.shots,dir=Math.floor(b.age/4)%2?10-n:n;this.hostile(b.x,b.y+28,.25+dir*(Math.PI-.5)/10,168,0);b.shots++;}
-          if(b.clock>.9/this.difficulty.attack)this.bossPhase('wait');break;
-        case 'wait':if(b.clock>.35*(b.enraged?.8:1)/this.difficulty.attack)this.bossPhase('aimWarn');break;
+          if(b.shots<b.sweepShots&&b.clock>=b.shots*.072/attack){const n=b.shots,dir=Math.floor(b.age/4)%2?b.sweepShots-n:n;this.hostile(b.x,b.y+28,.25+dir*(Math.PI-.5)/Math.max(10,b.sweepShots),168,0);b.shots++;}
+          if(b.clock>.9/attack)this.bossPhase('wait');break;
+        case 'wait':if(b.clock>.35*(b.enraged?.8:1)/attack)this.bossPhase('aimWarn');break;
       }
       if(hit(b,this.p,C.boss.radius+C.player.radius))this.damage();
     }
@@ -1027,7 +1134,12 @@
       this.stats.combatScore=K.int(this.stats.combatScore+score,C.score.cap);
       this.float(e.x,e.y,`+${score}`,'#e8f4f4');this.burst(e.x,e.y,e.type==='heavy'?'#ffa16d':'#fa9586',e.type==='heavy'?27:13,e.type==='heavy'?170:115);
       this.audio.sfx('explosion');
-      if(!e.training&&this.random()<C.enemies[e.type].drop){const d=C.drops[K.weighted(C.drops.map(x=>x.weight),this.random)];this.drop(d.type,e.x,e.y);}
+      if(!e.training&&e.type==='heavy'&&this.random()<.20){
+        // Super Bombs are a rare reward from intermediate bosses only.
+        this.drop('superBomb',e.x,e.y);
+      }else if(!e.training&&this.random()<C.enemies[e.type].drop){
+        const d=C.drops[K.weighted(C.drops.map(x=>x.weight),this.random)];this.drop(d.type,e.x,e.y);
+      }
     }
     killBoss(){
       const b=this.boss;if(!b?.active)return;b.active=false;b.hp=0;this.stats.bossKilled=true;this.comboKill();
@@ -1057,6 +1169,18 @@
       if(!['playing','tutorial'].includes(this.state)||this.p.ki<C.specialMissile.maxKi)return false;
       return this.fireSpecial();
     }
+    fireSuperBomb(){
+      if(!['playing','tutorial'].includes(this.state)||this.p.superBomb<=0)return false;
+      const profile=this.shipLoadout.superBomb;
+      const bomb=this.pools.specials.take({kind:'superBomb',x:this.p.x,y:this.p.y-34,vx:0,vy:-profile.speed,age:0,
+        color:profile.color,accent:profile.accent,core:profile.core,dark:profile.dark,glow:profile.glow,scale:profile.scale,
+        damage:Math.round(C.superBomb.damage*profile.damage*(1+(this.shipStats.firepower-3)*.10)*(1+Math.log1p(this.stage-1)*.06)),
+        blastWidth:profile.blastWidth,blastHeight:profile.blastHeight,hitRadius:profile.hitRadius,shieldSeconds:profile.shieldSeconds});
+      if(!bomb)return false;
+      this.p.superBomb--;this.p.shield=Math.max(this.p.shield,profile.shieldSeconds);this.p.invincible=Math.max(this.p.invincible,profile.shieldSeconds);
+      this.p.cooldown=Math.max(this.p.cooldown,C.player.shieldCooldown);this.stats.superBombs++;
+      this.message('superBombFired',1.2);this.audio.sfx('special');this.cb.haptic?.([20,35,20]);this.burst(this.p.x,this.p.y,profile.glow,22,150);return true;
+    }
     fireSpecial(){
       if(this.p.ki<C.specialMissile.maxKi)return false;
       const profile=this.shipLoadout.special,damageMultiplier=1+(this.shipStats.firepower-3)*.10;
@@ -1070,6 +1194,12 @@
       for(const m of this.pools.specials.items){
         if(!m.active)continue;m.age+=dt;
         m.x+=m.vx*dt;m.y+=m.vy*dt;
+        if(m.kind==='superBomb'){
+          const enemy=this.pools.enemies.items.find(e=>e.active&&hit(m,e,m.hitRadius+e.r));
+          const boss=this.boss?.active&&hit(m,this.boss,m.hitRadius+C.boss.radius);
+          if(enemy||boss||m.y<250){m.active=false;this.superBombBlast(m);}
+          continue;
+        }
         const enemy=this.pools.enemies.items.find(e=>e.active&&hit(m,e,m.hitRadius+e.r));
         const boss=this.boss?.active&&hit(m,this.boss,m.hitRadius+this.boss.r)?this.boss:null;
         if(enemy||boss||m.y<105){m.active=false;this.specialBlast(m);}
@@ -1082,6 +1212,16 @@
       if(this.boss?.active&&Math.hypot(this.boss.x-x,this.boss.y-y)<radius+C.boss.radius){this.boss.hp-=damage;if(this.boss.hp<=0)this.killBoss();}
       this.suppressKi=false;this.burst(x,y,missile.glow,this.settings.reducedMotion?14:34,Math.min(360,radius*.95));this.float(x,y,'SPECIAL HIT',missile.accent);
     }
+    superBombBlast(bomb){
+      const {x,y,blastWidth,blastHeight,damage}=bomb,halfWidth=blastWidth/2,halfHeight=blastHeight/2;
+      const inBlast=target=>Math.abs(target.x-x)<=halfWidth+target.r&&Math.abs(target.y-y)<=halfHeight+target.r;
+      this.suppressKi=true;
+      for(const e of this.pools.enemies.items)if(e.active&&inBlast(e)){e.hp-=damage;e.flash=.16;if(e.hp<=0)this.killEnemy(e);}
+      if(this.boss?.active&&Math.abs(this.boss.x-x)<=halfWidth+C.boss.radius&&Math.abs(this.boss.y-y)<=halfHeight+C.boss.radius){this.boss.hp-=damage;this.boss.flash=.16;if(this.boss.hp<=0)this.killBoss();}
+      this.suppressKi=false;
+      this.blasts.push({x,y,width:blastWidth,height:blastHeight,color:bomb.glow,accent:bomb.accent,life:.55,maxLife:.55});
+      this.burst(x,y,bomb.glow,this.settings.reducedMotion?22:58,Math.min(470,Math.max(blastWidth,blastHeight)*.48));this.float(x,y,'SUPER BOMB',bomb.accent);
+    }
     pickup(i){
       if(!i.active)return;i.active=false;const p=this.p;let label='',color='#a4e3ed';
       if(i.type.startsWith('coin')){const value=Number(i.type.slice(4));this.addCoins(value);this.audio.sfx('coin');if(value>1)label=`+${value}`;color='#ffdc8d';}
@@ -1092,6 +1232,7 @@
           case 'hp':if(p.hp<p.maxHp){p.hp++;label='+1 HP';}else{this.addCoins(2);label=this.cb.t?.('hpFull')||'+2';}color='#ffafbd';break;
           case 'magnet':p.magnet=p.magnet>0?Math.min(8,p.magnet+3):5;label=this.cb.t?.('magnet')||'MAGNET';break;
           case 'shield':p.shield=3;label=this.cb.t?.('shield')||'SHIELD';break;
+          case 'superBomb':p.superBomb=Math.min(2,p.superBomb+1);label=`${this.cb.t?.('superBomb')||'SUPER BOMB'} ×${p.superBomb}`;color='#ffb46f';break;
         }
       }
       if(label)this.float(p.x,p.y-42,label,color);
@@ -1115,13 +1256,15 @@
     }
     float(x,y,text,color){this.pools.texts.take({x,y,text,color,life:.8});}
     updateEffects(dt){
+      for(const b of this.blasts){b.life-=dt;}
+      this.blasts=this.blasts.filter(b=>b.life>0);
       for(const p of this.pools.particles.items){if(!p.active)continue;p.life-=dt;if(p.life<=0){p.active=false;continue;}p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=1-dt*2;p.vy*=1-dt*2;}
       for(const f of this.pools.texts.items){if(!f.active)continue;f.life-=dt;f.y-=26*dt;if(f.life<=0)f.active=false;}
     }
     finish(reason){
       if(this.state!=='playing'||this.finished)return false;
       this.finished=true;const breakdown=K.finalScore(this.stats,reason,this.p.hp,this.p.maxHp,this.elapsed);
-      this.result={runId:this.runId,reason,stage:this.stage,cleared:reason==='clear',score:breakdown.total,breakdown,coins:this.stats.coins,kills:this.stats.kills,specialMissiles:this.stats.specialMissiles,killsByType:{...this.stats.killsByType},maxCombo:this.stats.maxCombo,power:this.p.power,
+      this.result={runId:this.runId,reason,stage:this.stage,cleared:reason==='clear',score:breakdown.total,breakdown,coins:this.stats.coins,kills:this.stats.kills,specialMissiles:this.stats.specialMissiles,superBombs:this.stats.superBombs,killsByType:{...this.stats.killsByType},maxCombo:this.stats.maxCombo,power:this.p.power,
         maxPower:this.stats.maxPower,shieldUses:this.stats.shieldUses,bossKilled:this.stats.bossKilled,hp:this.p.hp,duration:this.elapsed,planeId:this.planeId,
         startedAt:this.startedAt,endedAt:new Date().toISOString(),configVersion:C.configVersion};
       this.audio.sfx(reason==='clear'?'win':'lose');this.target=null;
@@ -1165,12 +1308,20 @@
         A.line(c,[[bullet.x-dx*half,bullet.y-dy*half],[bullet.x+dx*half,bullet.y+dy*half]],col,bullet.width||3.5);
         A.line(c,[[bullet.x-dx*half*.62,bullet.y-dy*half*.62],[bullet.x+dx*half*.62,bullet.y+dy*half*.62]],bullet.core||'#f6ffff',Math.max(1.1,(bullet.width||3.5)*.28));
       }
+      for(const blast of this.blasts){
+        const progress=1-blast.life/blast.maxLife,fade=Math.max(0,blast.life/blast.maxLife),width=blast.width*(.55+progress*.45),height=blast.height*(.25+progress*.75);
+        c.save();c.globalAlpha=fade*.72;c.fillStyle=blast.color+'33';c.fillRect(blast.x-width/2,blast.y-height/2,width,height);
+        c.strokeStyle=blast.accent;c.lineWidth=2;c.strokeRect(blast.x-width/2,blast.y-height/2,width,height);
+        c.globalAlpha=fade;c.strokeStyle=blast.color;c.lineWidth=5;c.beginPath();c.ellipse(blast.x,blast.y,width/2,height/2,0,0,TAU);c.stroke();c.restore();
+      }
       for(const missile of this.pools.specials.items)if(missile.active){
         const pulse=1+Math.sin(this.visualTime*18+missile.age*12)*.08,flame=Math.sin(this.visualTime*24+missile.age*8),scale=missile.scale||1;
         const col=missile.color||'#d95043',accent=missile.accent||'#ffc45c',core=missile.core||'#fff3c7',dark=missile.dark||'#682c39';
         A.glow(c,missile.x,missile.y,58*scale,(missile.glow||col)+'77');
         c.save();c.translate(missile.x,missile.y);c.scale(scale,scale);
-        // A round bomb with a colored flame trail. Each ship supplies its own palette and size.
+        // Super Bombs use the same round silhouette as special missiles, but are larger and carry a stronger flame trail.
+        const bombScale=missile.kind==='superBomb'?1.28:1;
+        c.scale(bombScale,bombScale);
         c.fillStyle=accent+'dd';c.beginPath();c.moveTo(-11,6);c.quadraticCurveTo(-18,17,-10,26);c.lineTo(-5,21);c.quadraticCurveTo(-5,37,0,51+flame*5);c.quadraticCurveTo(5,37,5,21);c.lineTo(10,26);c.quadraticCurveTo(18,17,11,6);c.closePath();c.fill();
         c.fillStyle=core;c.beginPath();c.moveTo(-6,7);c.quadraticCurveTo(-10,17,-5,22);c.lineTo(0,40+flame*3);c.lineTo(5,22);c.quadraticCurveTo(10,17,6,7);c.closePath();c.fill();
         c.strokeStyle=accent+'aa';c.lineWidth=2;c.setLineDash([4,5]);c.beginPath();c.arc(0,0,20+Math.sin(this.visualTime*10)*2,0,TAU);c.stroke();c.setLineDash([]);
@@ -1268,7 +1419,7 @@
   }
   let itchAuth=loadAuthSession(),oauthWindow=null,oauthState='';
   let globalPersonal={userId:String(itchAuth?.user?.id||''),score:0,cumulativeScore:0,stage:1};
-  const keys=new Set(),P=()=>store.profile;
+  const keys=new Set(),P=()=>store.profile;let superBombKeyHeld=false;
   function t(key,args={}){let text=CC.I18N[P().settings.language][key]||CC.I18N.en[key]||key;for(const [k,v]of Object.entries(args))text=text.replaceAll(`{${k}}`,String(v));return text;}
   function authOrigin(){try{return new URL(C.leaderboardEndpoint).origin;}catch(_){return '';}}
   function saveAuthSession(){
@@ -1336,7 +1487,7 @@
   });
   function syncSettings(){audio.settings=P().settings;engine.settings={...P().settings,reducedMotion:P().settings.reducedMotion||autoReduced};document.documentElement.lang=P().settings.language;}
   function saveSettings(key,value){store.transaction(p=>{p.settings[key]=value;return true;});syncSettings();renderHeader();refreshHud(true);}
-  function clearInput(){keys.clear();pointer=null;engine.target=null;}
+  function clearInput(){keys.clear();pointer=null;engine.target=null;superBombKeyHeld=false;}
   function renderHeader(){
     const badge=$('storage-badge');badge.classList.toggle('memory',!store.persistent);badge.querySelector('span').textContent=itchAuth?.user?t('globalLinked'):C.leaderboardEndpoint?t('globalLinkRequired'):t(store.persistent?'local':'memory');
     $('lang-button').textContent=P().settings.language.toUpperCase();$('lang-button').setAttribute('aria-label',P().settings.language==='en'?'한국어로 변경':'Switch to English');
@@ -1345,7 +1496,7 @@
     document.querySelector('#shield-button .shield-icon').innerHTML=icon('shield');$('shield-button').setAttribute('aria-label',t('shield'));
     $('footer-edition').textContent=t('version');$('footer-note').textContent=t('noAds');$('footer-privacy').textContent=t('privacy');
     document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));
-    $('flight-canvas').setAttribute('aria-label',`${t('controls')}. ${t('keyboard')}. ${t('shieldHelp')}. ${t('pauseHelp')}.`);
+    $('flight-canvas').setAttribute('aria-label',`${t('controls')}. ${t('keyboard')}. ${t('mouseMove')}. ${t('shieldHelp')}. ${t('superBombHelp')}. ${t('pauseHelp')}.`);
   }
   function bindPreviews(){previews=Array.from(document.querySelectorAll('canvas[data-ship]'));drawPreviews(0);}
   function drawPreviews(time){for(const canvas of previews){if(canvas.getClientRects().length)CC.Art.preview(canvas,canvas.dataset.ship,P().settings.reducedMotion?0:time,canvas.classList.contains('hero-preview'));}}
@@ -1475,7 +1626,7 @@
   }
   function renderFlightPanels(){
     const s=C.ships.find(x=>x.id===P().equippedPlaneId);
-     $('left-flight-panel').innerHTML=`<div class="aside-kicker"><i></i>${t('badge')}</div><h2>CRAZY<br>COMBAT</h2><p>${t('intro')}</p><div class="aside-divider"></div><div class="aside-control"><span>${t('move')}</span><div><b class="keycap">W</b><b class="keycap">A</b><b class="keycap">S</b><b class="keycap">D</b></div><div><b class="keycap">↑</b><b class="keycap">←</b><b class="keycap">↓</b><b class="keycap">→</b></div></div><div class="aside-control"><span>${t('shield')}</span><div><b class="keycap">SPACE</b></div></div><div class="aside-control"><span>${t('specialMissile')}</span><div><b class="keycap">Q</b></div><p class="aside-tip">${t('specialHelp')}</p></div><div class="aside-control"><span>${t('pause')}</span><div><b class="keycap">ESC</b></div></div><p class="aside-tip">${t('drag')}</p><button class="text-button" data-action="help">${t('help')} ↗</button>`;
+     $('left-flight-panel').innerHTML=`<div class="aside-kicker"><i></i>${t('badge')}</div><h2>CRAZY<br>COMBAT</h2><p>${t('intro')}</p><div class="aside-divider"></div><div class="aside-control"><span>${t('move')}</span><div><b class="keycap">W</b><b class="keycap">A</b><b class="keycap">S</b><b class="keycap">D</b></div><div><b class="keycap">↑</b><b class="keycap">←</b><b class="keycap">↓</b><b class="keycap">→</b></div><p class="aside-tip">${t('keyboard')}</p></div><div class="aside-control"><span>${t('mouse')}</span><div><b class="keycap">MOUSE</b></div><p class="aside-tip mouse-help">${t('mouseMove')}</p></div><div class="aside-control"><span>${t('shield')}</span><div><b class="keycap">SPACE</b></div></div><div class="aside-control"><span>${t('specialMissile')}</span><div><b class="keycap">Q</b></div><p class="aside-tip">${t('specialHelp')}</p></div><div class="aside-control"><span>${t('superBomb')}</span><div><b class="keycap">E</b></div><p class="aside-tip superbomb-help">${t('superBombHelp')}</p></div><div class="aside-control"><span>${t('pause')}</span><div><b class="keycap">ESC</b></div></div><button class="text-button" data-action="help">${t('help')} ↗</button>`;
      $('right-flight-panel').innerHTML=`<div class="eyebrow">${s.code} / ${t('equipped')}</div><canvas class="aside-ship" data-ship="${s.id}" aria-hidden="true"></canvas><div class="section-label"><h2>${s.name}</h2><small>✦ ${number(P().coins)}</small></div><div class="aside-divider"></div><div class="aside-stat"><span>${t('stage')}</span><strong id="aside-stage">${String(P().currentStage).padStart(3,'0')} / 1000</strong></div><div class="aside-stat"><span>${t('best')}</span><strong id="aside-best">${number(personalGlobalScore())}</strong></div><div class="aside-stat"><span>${t('kills')}</span><strong id="aside-kills">0</strong></div><div class="aside-stat"><span>${t('maxCombo')}</span><strong id="aside-combo">0</strong></div><div class="aside-divider"></div><span class="micro">${t('threat')}</span><div id="threat-bars" class="threat-bars"><i></i><i></i><i></i><i></i><i></i><i></i></div><p class="aside-tip" style="margin-top:16px">${t('countdownBoss')}<br>${t('endpoint')}</p>`;
     bindPreviews();renderHeader();
   }
@@ -1518,6 +1669,7 @@
      $('hud-stage-label').textContent=`${t('stage')} ${String(engine.stage).padStart(3,'0')} / ${C.totalStages}`;
      $('hud-difficulty').textContent=`${t('threat')} ×${engine.difficulty.enemy.toFixed(1)}`;
      $('hud-ki').style.width=(p.ki/C.specialMissile.maxKi*100)+'%';$('hud-ki-track').classList.toggle('ready',p.ki>=C.specialMissile.maxKi);
+     const bombReady=p.superBomb>0;$('superbomb-hud').classList.toggle('hidden',!bombReady);$('superbomb-hud').classList.toggle('ready',bombReady);$('hud-superbomb-status').textContent=bombReady?`${t('superBombReady')} · ${p.superBomb}`:'';
      $('hud-ki-status').textContent=p.ki>=C.specialMissile.maxKi?t('specialReady'):`${t('charging')} ${Math.floor(p.ki)}%`;
     $('hud-coins').textContent=`✦ ${s.coins}`;$('magnet-timer').textContent=p.magnet>0?`${t('magnet')} ${p.magnet.toFixed(1)}s`:'';
     $('game-controls').classList.toggle('left-handed',P().settings.leftHanded);
@@ -1548,7 +1700,7 @@
     return `<div class="eyebrow modal-eyebrow">${t('settings')}</div><h2 id="modal-title">${t('settingsTitle')}</h2><div class="settings-rows">${rows}<label class="setting-row"><span>${t('controlMode')}</span><select id="control-mode"><option value="relative" ${settings.controlMode==='relative'?'selected':''}>${t('relative')}</option><option value="absolute" ${settings.controlMode==='absolute'?'selected':''}>${t('absolute')}</option></select></label><label class="setting-row"><span>${t('language')}</span><select id="language-select"><option value="en" ${settings.language==='en'?'selected':''}>English</option><option value="ko" ${settings.language==='ko'?'selected':''}>한국어</option></select></label></div><div class="settings-buttons"><button class="secondary-button" data-action="training" ${inFlight?'disabled':''}>${icon('plane')}${t('replayTutorial')}</button><button class="secondary-button" data-action="help">${icon('help')}${t('help')}</button><button class="secondary-button" data-action="export">${icon('download')}${t('exportSave')}</button><button class="secondary-button" data-action="import" ${inFlight?'disabled':''}>${icon('upload')}${t('importSave')}</button></div>${itchAccountHTML()}<p class="settings-note">${t('localOnly')}</p><div class="settings-bottom"><button class="text-button" data-action="privacy">${t('privacy')}</button><button class="text-button danger-button" data-action="reset" ${inFlight?'disabled':''}>${t('reset')}</button></div>`;
   }
   function manualHTML(){
-     return `<div class="eyebrow modal-eyebrow">${t('help')}</div><h2 id="modal-title">${t('rules')}</h2><div class="manual-section"><h3>${t('controls')}</h3>${[['move',t('keyboard')],['move',t('drag')],['shield',t('shieldHelp')],['specialMissile',t('specialHelp')],['pause',t('pauseHelp')]].map(([a,b])=>`<div class="control-line"><span>${t(a)}</span><span>${b}</span></div>`).join('')}<p class="settings-note">${t('focusHelp')}</p></div><div class="manual-section">${[1,2,3,4,5].map(i=>`<div class="manual-rule"><b>0${i}</b><span>${t('rule'+i)}</span></div>`).join('')}</div><div class="manual-section"><h3>${t('items')}</h3>${[['P','powerItem'],['+','hpItem'],['M','magnetItem'],['S','shieldItem'],['✦','starsItem']].map(([a,b])=>`<div class="item-line"><span class="item-symbol">${a}</span><span>${t(b)}</span></div>`).join('')}</div>`;
+     return `<div class="eyebrow modal-eyebrow">${t('help')}</div><h2 id="modal-title">${t('rules')}</h2><div class="manual-section"><h3>${t('controls')}</h3>${[['move',t('keyboard')],['mouse',t('mouseMove')],['shield',t('shieldHelp')],['specialMissile',t('specialHelp')],['superBomb',t('superBombHelp')],['pause',t('pauseHelp')]].map(([a,b])=>`<div class="control-line"><span>${t(a)}</span><span>${b}</span></div>`).join('')}<p class="settings-note">${t('focusHelp')}</p></div><div class="manual-section">${[1,2,3,4,5].map(i=>`<div class="manual-rule"><b>0${i}</b><span>${t('rule'+i)}</span></div>`).join('')}</div><div class="manual-section"><h3>${t('items')}</h3>${[['P','powerItem'],['+','hpItem'],['M','magnetItem'],['S','shieldItem'],['B','superBombItem'],['✦','starsItem']].map(([a,b])=>`<div class="item-line"><span class="item-symbol">${a}</span><span>${t(b)}</span></div>`).join('')}</div>`;
   }
   function resultHTML(m){
     const r=m.result,b=r.breakdown;
@@ -1687,9 +1839,10 @@
     if(view!=='flight')return;
     if(['Escape','KeyP'].includes(event.code)){event.preventDefault();if(!event.repeat)engine.pause();return;}
     if((event.code==='Space'||event.code==='ShiftLeft'||event.code==='ShiftRight')&&event.target.tagName!=='BUTTON'){event.preventDefault();if(!event.repeat)engine.shield();return;}
+    if(event.code==='KeyE'&&engine.p.superBomb>0){event.preventDefault();if(!event.repeat&&!superBombKeyHeld){superBombKeyHeld=true;engine.fireSuperBomb();refreshHud(true);}return;}
      if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','KeyA','KeyD','KeyW','KeyS','KeyQ'].includes(event.code)){event.preventDefault();keys.add(event.code);}
    });
-   document.addEventListener('keyup',event=>{if(event.code==='KeyQ'&&!event.repeat)engine.releaseSpecialCharge();keys.delete(event.code);});
+   document.addEventListener('keyup',event=>{if(event.code==='KeyQ'&&!event.repeat)engine.releaseSpecialCharge();if(event.code==='KeyE')superBombKeyHeld=false;keys.delete(event.code);});
   function background(){clearInput();if(['playing','tutorial','countdown','resuming'].includes(engine.state))engine.pause();audio.suspend();}
   document.addEventListener('visibilitychange',()=>{if(document.hidden)background();else{lastTime=0;accumulator=0;if(view!=='flight')audio.unlock();}});
   root.addEventListener('blur',background);root.addEventListener('pagehide',()=>store.persist());
