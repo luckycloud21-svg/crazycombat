@@ -1350,7 +1350,7 @@
     bindPreviews();renderHeader();
   }
   function startNewCampaign(){
-    store.transaction(p=>{p.currentStage=1;p.currentPower=1;return true;});
+    store.transaction(p=>{p.currentStage=1;p.currentPower=1;p.campaignScore=0;return true;});
     syncSettings();renderHeader();enterFlight(false,true);
   }
   function enterFlight(training=false,after=true){
@@ -1370,8 +1370,10 @@
      const stageScore=Math.min(C.score.cap,s.combatScore+s.coinScore);
      const committedScore=engine.state==='result'&&engine.result?Math.max(0,(Number(P().campaignScore)||0)-engine.result.score):Number(P().campaignScore)||0;
      const campaignScore=Math.min(C.score.totalCap,committedScore+stageScore);
-     // A new campaign resets campaignScore; later stages keep adding to it.
-     $('hud-score').textContent=String(campaignScore).padStart(6,'0');$('hud-score').setAttribute('aria-label',`${t('campaignScore')}: ${number(campaignScore)}`);$('hud-time').innerHTML=`${Math.floor(elapsed)}<small>.${Math.floor(elapsed*10)%10}</small>`;
+     // Each flight starts at zero. The completed run is added to campaignScore
+     // by applyRun, so the campaign total still carries across cleared stages.
+     const displayedScore=engine.state==='result'?campaignScore:stageScore;
+     $('hud-score').textContent=String(displayedScore).padStart(6,'0');$('hud-score').setAttribute('aria-label',`${t('score')}: ${number(displayedScore)}`);$('hud-time').innerHTML=`${Math.floor(elapsed)}<small>.${Math.floor(elapsed*10)%10}</small>`;
      document.querySelector('.hud-time').classList.remove('danger');
     if(force||lastHud.hp!==p.hp||lastHud.maxHp!==p.maxHp){$('hud-hp').innerHTML=Array.from({length:p.maxHp},(_,i)=>`<i class="${i>=p.hp?'empty':''}"></i>`).join('');$('hud-hp').setAttribute('aria-label',`${t('hull')}: ${p.hp} / ${p.maxHp}`);lastHud.hp=p.hp;lastHud.maxHp=p.maxHp;}
     if(force||lastHud.power!==p.power){$('hud-power').innerHTML=`<span>P${p.power}</span>`+[1,2,3,4,5].map(i=>`<i class="${i<=p.power?'full':''}"></i>`).join('');lastHud.power=p.power;}
