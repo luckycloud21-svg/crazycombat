@@ -231,7 +231,7 @@
     });
   }
   function defaults(language = 'en', day = dateKey()) {
-    return { schemaVersion: 3, playerId: makePlayerId(), bestScore: 0, overallScore: 0, currentStage: 1, pilotName: 'PILOT', coins: 0, ownedPlaneIds: ['falcon'], equippedPlaneId: 'falcon', tutorialCompleted: false,
+    return { schemaVersion: 3, playerId: makePlayerId(), bestScore: 0, overallScore: 0, currentStage: 1, currentPower: 1, pilotName: 'PILOT', coins: 0, ownedPlaneIds: ['falcon'], equippedPlaneId: 'falcon', tutorialCompleted: false,
       settings: { bgm: true, sfx: true, haptic: true, controlMode: 'relative', leftHanded: false, reducedMotion: false, language: language === 'ko' ? 'ko' : 'en' },
       dailyMission: { dateKey: day, missions: makeMissions(day) },
       records: [], processedRuns: [], totals: { runs: 0, kills: 0, bosses: 0, seconds: 0, score: 0, maxStage: 1 }, updatedAt: new Date().toISOString() };
@@ -244,6 +244,7 @@
     p.bestScore = int(raw.bestScore ?? raw.highScore, C.score.cap);
     p.overallScore = int(raw.overallScore ?? raw.totalScore, C.score.totalCap);
     p.currentStage = clamp(int(raw.currentStage ?? raw.stage, C.totalStages) || 1, 1, C.totalStages);
+    p.currentPower = clamp(int(raw.currentPower ?? raw.power, C.player.maxPower) || 1, 1, C.player.maxPower);
     p.pilotName = String(raw.pilotName ?? 'PILOT').trim().slice(0, 24) || 'PILOT';
     p.coins = int(raw.coins ?? raw.gold);
     const ids = new Set(C.ships.map(s => s.id));
@@ -295,6 +296,7 @@
     p.coins = int(p.coins + int(r.coins,10000));
     p.bestScore = Math.max(p.bestScore,int(r.score,C.score.cap));
     p.overallScore = int(p.overallScore + int(r.score,C.score.cap), C.score.totalCap);
+    p.currentPower = r.reason === 'clear' ? clamp(int(r.power, C.player.maxPower) || 1, 1, C.player.maxPower) : 1;
     p.totals.score = int(p.totals.score + int(r.score,C.score.cap), C.score.totalCap);
     p.totals.maxStage = Math.max(p.totals.maxStage, clamp(int(r.stage, C.totalStages) || 1, 1, C.totalStages));
     if (r.reason === 'clear') p.currentStage = Math.min(C.totalStages, Math.max(p.currentStage, (int(r.stage, C.totalStages) || 1) + 1));
@@ -383,7 +385,7 @@
   'use strict';
   const en = {
      division:'ARCADE FLIGHT DIVISION', local:'LOCAL PROFILE', memory:'SESSION ONLY', globalLinked:'GLOBAL LINKED', globalLinkRequired:'ITCH LOGIN NEEDED', subtitle:'No clock. Make every stage count.',
-     intro:'Hold Q to charge KI, release it to fire a straight special missile, and destroy the boss.', launch:'LAUNCH MISSION', ready:'READY FOR TAKEOFF', mission:'DAILY MISSIONS', campaign:'1,000-STAGE CAMPAIGN', stage:'STAGE', stages:'STAGES', currentStage:'CURRENT STAGE', overallScore:'OVERALL SCORE', overallRank:'OVERALL RANK',
+     intro:'Hold Q to charge KI, release it to fire a straight special missile, and destroy the boss.', launch:'LAUNCH MISSION', newCampaign:'NEW CAMPAIGN', ready:'READY FOR TAKEOFF', mission:'DAILY MISSIONS', campaign:'1,000-STAGE CAMPAIGN', stage:'STAGE', stages:'STAGES', currentStage:'CURRENT STAGE', overallScore:'OVERALL SCORE', overallRank:'OVERALL RANK',
     localDate:'Resets at local midnight', claim:'CLAIM', claimed:'CLAIMED', reward:'REWARD', best:'PERSONAL BEST', bestNote:'Your next flight could be your best.',
     hangar:'HANGAR', records:'FLIGHT RECORDS', settings:'SETTINGS', equipped:'EQUIPPED', equip:'EQUIP SHIP', owned:'OWNED', unlock:'UNLOCK', locked:'LOCKED',
     chooseShip:'Choose your signature.', cosmetic:'Every ship has a different combat profile. Pick your advantage.',
@@ -397,7 +399,7 @@
     firepower:'FIREPOWER', armor:'ARMOR', handling:'HANDLING', back:'BACK', coins:'COINS', wallet:'YOUR BALANCE',
     insufficient:'Earn {n} more coins to unlock this ship.', buyTitle:'Unlock {name}?', buyBody:'Spend {n} coins on this cosmetic ship. No real money is used.',
     confirmBuy:'UNLOCK & EQUIP', shipUnlocked:'{name} unlocked and equipped.', shipEquipped:'{name} equipped.',
-     recordsTitle:'Every flight leaves a mark.', recordsNote:'Your overall ranking across every stage, stored in this browser.', globalRanking:'GLOBAL SCORE RANKING', globalNote:'Cumulative scores by itch.io account. Connect itch.io to submit your score.', globalOffline:'ONLINE LEADERBOARD NOT CONNECTED', globalOfflineNote:'This standalone HTML build is ready for a leaderboard API. Local ranking remains available below.', globalLoading:'LOADING GLOBAL SCORES…', globalEmpty:'No global scores yet.', globalRetry:'REFRESH GLOBAL RANKING', player:'PLAYER',
+     recordsTitle:'Every flight leaves a mark.', recordsNote:'Your overall ranking across every stage, stored in this browser.', globalRanking:'GLOBAL SCORE RANKING', globalNote:'Ranking points = stage score × stage number, accumulated by itch.io account.', globalOffline:'ONLINE LEADERBOARD NOT CONNECTED', globalOfflineNote:'This standalone HTML build is ready for a leaderboard API. Local ranking remains available below.', globalLoading:'LOADING GLOBAL SCORES…', globalEmpty:'No global scores yet.', globalRetry:'REFRESH GLOBAL RANKING', player:'PLAYER',
     noRecords:'Your first sortie starts here.', noRecordsDesc:'Complete a mission to log your first score.', flights:'FLIGHTS', kills:'ENEMIES', bosses:'BOSSES',
      score:'SCORE', time:'ELAPSED', hull:'HULL', power:'POWER', shield:'SHIELD', readyShield:'READY', activeShield:'ACTIVE', autoFire:'AUTO FIRE', sector:'SECTOR', ki:'KI', specialReady:'RELEASE Q TO FIRE', charging:'HOLD Q TO CHARGE', specialMissile:'SPECIAL MISSILE', specialHelp:'HOLD Q · RELEASE TO FIRE',
     pause:'PAUSE', paused:'FLIGHT PAUSED', pauseDesc:'Take a breath. Your mission will wait.', resume:'RESUME FLIGHT', restart:'RESTART', returnLobby:'RETURN TO BASE',
@@ -441,6 +443,7 @@
     anotherTab:'Progress changed in another tab. Return to base and reload before continuing to avoid overwriting it.'
   };
   const ko = {
+     newCampaign:'새 캠페인 시작',
      division:'아케이드 비행 전대', local:'로컬 저장', memory:'임시 저장', subtitle:'시간 제한 없이, 모든 스테이지에 도전하세요.', campaign:'1,000 스테이지 캠페인', stage:'스테이지', stages:'스테이지', currentStage:'현재 스테이지', overallScore:'종합 점수', overallRank:'종합 순위',
      intro:'Q를 눌러 기를 모으고, 손을 떼 특수 미사일을 발사해 보스를 격파하세요.', launch:'전투 시작', ready:'출격 준비 완료', mission:'오늘의 미션',
     localDate:'기기 시간 기준 자정에 초기화', claim:'받기', claimed:'수령 완료', reward:'보상', best:'나의 최고 점수', bestNote:'다음 비행에서 기록을 새로 써보세요.',
@@ -456,7 +459,7 @@
     firepower:'공격력', armor:'방어력', handling:'기동력', back:'뒤로', coins:'코인', wallet:'보유 코인',
     insufficient:'해금하려면 코인 {n}개가 더 필요해요.', buyTitle:'{name} 기체를 해금할까요?', buyBody:'게임 코인 {n}개로 외형 기체를 해금해요. 실제 돈은 사용하지 않아요.',
     confirmBuy:'해금하고 장착', shipUnlocked:'{name} 기체를 해금하고 장착했어요.', shipEquipped:'{name} 기체를 장착했어요.',
-     recordsTitle:'모든 비행에는 기록이 남아요.', recordsNote:'모든 스테이지의 전투 기록을 점수순으로 보여줘요.', globalRanking:'글로벌 점수 랭킹', globalNote:'itch.io 계정별 누적 점수 랭킹이에요. 점수를 저장하려면 itch.io를 연결하세요.', globalOffline:'온라인 랭킹 서버 미연결', globalOfflineNote:'이 단일 HTML 버전은 랭킹 API 연동을 지원해요. 아래에서 로컬 랭킹을 확인할 수 있어요.', globalLoading:'글로벌 점수 불러오는 중…', globalEmpty:'아직 글로벌 점수가 없어요.', globalRetry:'글로벌 랭킹 새로고침', player:'플레이어',
+    recordsTitle:'모든 비행에는 기록이 남아요.', recordsNote:'모든 스테이지의 전투 기록을 점수순으로 보여줘요.', globalRanking:'글로벌 점수 랭킹', globalNote:'스테이지 점수 × 스테이지 번호를 계정별로 누적한 글로벌 랭킹이에요. 점수를 저장하려면 itch.io를 연결하세요.', globalOffline:'온라인 랭킹 서버 미연결', globalOfflineNote:'이 단일 HTML 버전은 랭킹 API 연동을 지원해요. 아래에서 로컬 랭킹을 확인할 수 있어요.', globalLoading:'글로벌 점수 불러오는 중…', globalEmpty:'아직 글로벌 점수가 없어요.', globalRetry:'글로벌 랭킹 새로고침', player:'플레이어',
     noRecords:'첫 번째 출격을 기다리고 있어요.', noRecordsDesc:'한 번의 전투를 마치면 점수가 기록돼요.', flights:'비행 횟수', kills:'적 처치', bosses:'보스 처치',
      score:'점수', time:'경과 시간', hull:'체력', power:'파워', shield:'쉴드', readyShield:'준비', activeShield:'작동 중', autoFire:'자동 발사', sector:'구간', ki:'기', specialReady:'Q를 떼면 발사', charging:'Q를 누르는 중', specialMissile:'특수 미사일', specialHelp:'Q 누르기 · 떼면 발사',
     pause:'일시정지', paused:'비행 일시정지', pauseDesc:'잠깐 쉬어가세요. 전투는 기다려줄게요.', resume:'계속하기', restart:'다시 시작', returnLobby:'로비로',
@@ -743,18 +746,19 @@
       this.state='idle';this.settings={};this.visualTime=0;this.banner=null;this.boss=null;this.result=null;this.reset('falcon',1);
     }
     setState(state){this.state=state;this.cb.state?.(state);}
-    reset(planeId,stage=1){
+    reset(planeId,stage=1,power=1){
       for(const pool of Object.values(this.pools))pool.clear();
       this.stage=K.clamp(K.int(stage,C.totalStages)||1,1,C.totalStages);this.difficulty=K.stageDifficulty(this.stage);
       this.shipStats=K.shipStats(planeId);
-      this.p={x:C.width/2,y:C.height-133,hp:this.shipStats.armor,maxHp:this.shipStats.armor,power:1,ki:0,invincible:0,shield:0,cooldown:0,magnet:0,bank:0};
-      this.stats={combatScore:0,coinScore:0,coins:0,kills:0,specialMissiles:0,killsByType:{scout:0,curveL:0,curveR:0,dash:0,heavy:0},combo:0,maxCombo:0,maxPower:1,shieldUses:0,bossKilled:false};
+      const startingPower=K.clamp(K.int(power,C.player.maxPower)||1,1,C.player.maxPower);
+      this.p={x:C.width/2,y:C.height-133,hp:this.shipStats.armor,maxHp:this.shipStats.armor,power:startingPower,ki:0,invincible:0,shield:0,cooldown:0,magnet:0,bank:0};
+      this.stats={combatScore:0,coinScore:0,coins:0,kills:0,specialMissiles:0,killsByType:{scout:0,curveL:0,curveR:0,dash:0,heavy:0},combo:0,maxCombo:0,maxPower:startingPower,shieldUses:0,bossKilled:false};
       this.elapsed=0;this.spawnAt=.45;this.nextShot=0;this.comboClock=0;this.boss=null;this.bossSpawned=false;this.firstPower=false;this.supportAt=52.5;
       this.planeId=planeId;this.shake=0;this.hitFlash=0;this.target=null;this.lastMove=0;this.moveTime=0;this.result=null;this.banner=null;this.visualTime=0;
       this.runId=root.crypto?.randomUUID?.()||`run-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       this.startedAt=new Date().toISOString();this.random=K.rng(K.hash(this.runId));this.finished=false;
     }
-    start(planeId,settings,stage=1){this.reset(planeId,stage);this.settings=settings;this.countdown=3;this.countText=3;this.audio.sfx('tick');this.setState('countdown');}
+    start(planeId,settings,stage=1,power=1){this.reset(planeId,stage,power);this.settings=settings;this.countdown=3;this.countText=3;this.audio.sfx('tick');this.setState('countdown');}
     tutorial(planeId,settings){this.reset(planeId,1);this.settings=settings;this.tutorialStep=0;this.tutorialClock=0;this.tutorialMove=0;this.tutorialShield=false;this.setState('tutorial');this.cb.tutorialStep?.(0);}
     endTutorial(){if(this.state!=='tutorial')return;this.setState('idle');for(const p of Object.values(this.pools))p.clear();this.cb.tutorialComplete?.();}
     nextTutorial(){
@@ -956,7 +960,7 @@
     damage(){
       const p=this.p;
       if(this.state==='tutorial'||this.state!=='playing'||p.invincible>0||p.shield>0)return false;
-      p.hp--;p.invincible=C.player.hitInvincible;this.stats.combo=Math.floor(this.stats.combo/2);
+      p.hp--;p.power=Math.max(1,p.power-1);p.invincible=C.player.hitInvincible;this.stats.combo=Math.floor(this.stats.combo/2);
       if(this.stats.combo===0)this.comboClock=0;
       this.hitFlash=.15;this.shake=this.settings.reducedMotion?0:3;this.audio.sfx('hit');this.cb.haptic?.(45);
       this.burst(p.x,p.y,'#ff8695',16,100);
@@ -1029,7 +1033,7 @@
     finish(reason){
       if(this.state!=='playing'||this.finished)return false;
       this.finished=true;const breakdown=K.finalScore(this.stats,reason,this.p.hp,this.p.maxHp);
-      this.result={runId:this.runId,reason,stage:this.stage,cleared:reason==='clear',score:breakdown.total,breakdown,coins:this.stats.coins,kills:this.stats.kills,specialMissiles:this.stats.specialMissiles,killsByType:{...this.stats.killsByType},maxCombo:this.stats.maxCombo,
+      this.result={runId:this.runId,reason,stage:this.stage,cleared:reason==='clear',score:breakdown.total,breakdown,coins:this.stats.coins,kills:this.stats.kills,specialMissiles:this.stats.specialMissiles,killsByType:{...this.stats.killsByType},maxCombo:this.stats.maxCombo,power:this.p.power,
         maxPower:this.stats.maxPower,shieldUses:this.stats.shieldUses,bossKilled:this.stats.bossKilled,hp:this.p.hp,duration:this.elapsed,planeId:this.planeId,
         startedAt:this.startedAt,endedAt:new Date().toISOString(),configVersion:C.configVersion};
       this.audio.sfx(reason==='clear'?'win':'lose');this.target=null;
@@ -1176,7 +1180,7 @@
     tutorialStep(step){renderTraining(step);},
     tutorialComplete(){
       store.transaction(p=>{p.tutorialCompleted=true;return true;});syncSettings();
-       if(tutorialAfter){engine.start(P().equippedPlaneId,P().settings,P().currentStage);$('flight-canvas').focus({preventScroll:true});}
+       if(tutorialAfter){engine.start(P().equippedPlaneId,P().settings,P().currentStage,P().currentPower);$('flight-canvas').focus({preventScroll:true});}
       else showView('lobby');
     },
     finish(result){
@@ -1220,7 +1224,7 @@
   }
   function lobbyHTML(){
     const p=P(),s=C.ships.find(x=>x.id===p.equippedPlaneId);
-     return `<div class="lobby-grid"><section class="hero"><div class="hero-ship-label"><small>${s.code}</small>${s.name}</div><canvas class="hero-preview" data-ship="${s.id}" aria-hidden="true"></canvas><div class="hero-content"><div class="eyebrow"><i></i>${t('division')}</div><h1><span>CRAZY</span><span>COMBAT</span></h1><p class="hero-subtitle">${t('subtitle')}</p><p class="hero-description">${t('intro')}</p><div class="hero-actions"><button class="primary-button" data-action="launch">${t('launch')}${icon('arrow')}</button><span class="button-caption">${t('ready')}</span></div></div><div class="hero-annotation">${s.code} / ${s.name}<br>SYS. ONLINE · PWR 01<br>STAGE ${String(p.currentStage).padStart(3,'0')} / 1000</div><div class="flight-path"><span><b>001</b> / START</span><i></i><span><b>500</b> / MIDWAY</span><i></i><span><b>1000</b> / FINAL</span></div></section><aside class="sidebar"><section class="missions-panel"><div class="section-label"><h2>${t('mission')}</h2><small>${p.dailyMission.dateKey.slice(5).replace('-',' / ')}</small></div><p class="daily-note">${t('localDate')}</p>${p.dailyMission.missions.map(missionCard).join('')}</section><section class="record-panel"><div class="section-label"><span class="micro">${t('campaign')}</span>${icon('trophy')}</div><div class="best-score">${String(p.currentStage).padStart(3,'0')}<small style="font-size:15px;color:var(--muted)"> / 1000</small></div><p>${t('currentStage')} · ${t('overallScore')} ${number(p.overallScore)}</p><div class="stage-progress"><div class="stage-progress-head"><small>${t('stage')} ${p.currentStage} / ${C.totalStages}</small><strong>${Math.round(p.currentStage/C.totalStages*100)}%</strong></div><div class="stage-track"><i style="width:${p.currentStage/C.totalStages*100}%"></i></div><div class="stage-caption"><span>${t('stage')} 001</span><span>${t('finalStage')} 1000</span></div></div></section></aside></div><div class="pilot-bar"><div class="pilot-id"><canvas class="pilot-preview" data-ship="${s.id}" aria-hidden="true"></canvas><div><span class="micro">${t('equipped')}</span><h3>${s.name}<span class="pilot-tag">${s.code}</span></h3><span class="pilot-subtitle">${t(s.id+'Type')}</span></div></div><nav class="nav-buttons" aria-label="${t('help')}"><button class="secondary-button" data-action="hangar">${icon('hangar')}${t('hangar')}</button><button class="secondary-button" data-action="records">${icon('trophy')}${t('records')}</button><button class="secondary-button small-settings" data-action="settings" aria-label="${t('settings')}">${icon('settings')}</button></nav></div>`;
+     return `<div class="lobby-grid"><section class="hero"><div class="hero-ship-label"><small>${s.code}</small>${s.name}</div><canvas class="hero-preview" data-ship="${s.id}" aria-hidden="true"></canvas><div class="hero-content"><div class="eyebrow"><i></i>${t('division')}</div><h1><span>CRAZY</span><span>COMBAT</span></h1><p class="hero-subtitle">${t('subtitle')}</p><p class="hero-description">${t('intro')}</p><div class="hero-actions"><button class="primary-button" data-action="new-campaign">${t('newCampaign')}${icon('arrow')}</button>${p.currentStage>1||p.overallScore>0?`<button class="secondary-button" data-action="continue">${t('continue')}</button>`:''}<span class="button-caption">${t('ready')}</span></div></div><div class="hero-annotation">${s.code} / ${s.name}<br>SYS. ONLINE · PWR ${String(p.currentPower).padStart(2,'0')}<br>STAGE ${String(p.currentStage).padStart(3,'0')} / 1000</div><div class="flight-path"><span><b>001</b> / START</span><i></i><span><b>500</b> / MIDWAY</span><i></i><span><b>1000</b> / FINAL</span></div></section><aside class="sidebar"><section class="missions-panel"><div class="section-label"><h2>${t('mission')}</h2><small>${p.dailyMission.dateKey.slice(5).replace('-',' / ')}</small></div><p class="daily-note">${t('localDate')}</p>${p.dailyMission.missions.map(missionCard).join('')}</section><section class="record-panel"><div class="section-label"><span class="micro">${t('campaign')}</span>${icon('trophy')}</div><div class="best-score">${String(p.currentStage).padStart(3,'0')}<small style="font-size:15px;color:var(--muted)"> / 1000</small></div><p>${t('currentStage')} · ${t('overallScore')} ${number(p.overallScore)}</p><div class="stage-progress"><div class="stage-progress-head"><small>${t('stage')} ${p.currentStage} / ${C.totalStages}</small><strong>${Math.round(p.currentStage/C.totalStages*100)}%</strong></div><div class="stage-track"><i style="width:${p.currentStage/C.totalStages*100}%"></i></div><div class="stage-caption"><span>${t('stage')} 001</span><span>${t('finalStage')} 1000</span></div></div></section></aside></div><div class="pilot-bar"><div class="pilot-id"><canvas class="pilot-preview" data-ship="${s.id}" aria-hidden="true"></canvas><div><span class="micro">${t('equipped')}</span><h3>${s.name}<span class="pilot-tag">${s.code}</span></h3><span class="pilot-subtitle">${t(s.id+'Type')}</span></div></div><nav class="nav-buttons" aria-label="${t('help')}"><button class="secondary-button" data-action="hangar">${icon('hangar')}${t('hangar')}</button><button class="secondary-button" data-action="records">${icon('trophy')}${t('records')}</button><button class="secondary-button small-settings" data-action="settings" aria-label="${t('settings')}">${icon('settings')}</button></nav></div>`;
   }
   function heading(k,title,desc,extra=''){return `<div class="page-heading"><div><button class="back-button" data-action="home">${icon('back')}${t('back')}</button><div class="eyebrow">${t(k)}</div><h1>${t(title)}</h1><p>${t(desc)}</p></div>${extra}</div>`;}
    function hangarHTML(){
@@ -1323,11 +1327,15 @@
      $('right-flight-panel').innerHTML=`<div class="eyebrow">${s.code} / ${t('equipped')}</div><canvas class="aside-ship" data-ship="${s.id}" aria-hidden="true"></canvas><div class="section-label"><h2>${s.name}</h2><small>✦ ${number(P().coins)}</small></div><div class="aside-divider"></div><div class="aside-stat"><span>${t('stage')}</span><strong id="aside-stage">${String(P().currentStage).padStart(3,'0')} / 1000</strong></div><div class="aside-stat"><span>${t('best')}</span><strong>${number(P().bestScore)}</strong></div><div class="aside-stat"><span>${t('kills')}</span><strong id="aside-kills">0</strong></div><div class="aside-stat"><span>${t('maxCombo')}</span><strong id="aside-combo">0</strong></div><div class="aside-divider"></div><span class="micro">${t('threat')}</span><div id="threat-bars" class="threat-bars"><i></i><i></i><i></i><i></i><i></i><i></i></div><p class="aside-tip" style="margin-top:16px">${t('countdownBoss')}<br>${t('endpoint')}</p>`;
     bindPreviews();renderHeader();
   }
+  function startNewCampaign(){
+    store.transaction(p=>{p.currentStage=1;p.currentPower=1;return true;});
+    syncSettings();renderHeader();enterFlight(false,true);
+  }
   function enterFlight(training=false,after=true){
     if(['playing','countdown','tutorial','resuming'].includes(engine.state))return;
     clearModals();audio.unlock();syncSettings();showView('flight');tutorialAfter=after;lastHud={};
     if(training||!P().tutorialCompleted)engine.tutorial(P().equippedPlaneId,P().settings);
-    else engine.start(P().equippedPlaneId,P().settings,P().currentStage);
+    else engine.start(P().equippedPlaneId,P().settings,P().currentStage,P().currentPower);
     syncSettings();resize();engine.draw();$('flight-canvas').focus({preventScroll:true});refreshHud(true);requestAnimationFrame(resize);
   }
   function renderTraining(step){
@@ -1338,10 +1346,9 @@
     if(view!=='flight')return;
      const p=engine.p,s=engine.stats,state=engine.state,elapsed=engine.elapsed;
      const stageScore=Math.min(C.score.cap,s.combatScore+s.coinScore);
-     // Keep the HUD continuous across stages: completed stages are already in
-     // the browser profile, while the current stage is still live in the engine.
-     const cumulativeScore=Math.min(C.score.totalCap,Math.max(0,Number(P().overallScore)||0)+stageScore);
-     $('hud-score').textContent=String(cumulativeScore).padStart(6,'0');$('hud-score').setAttribute('aria-label',`${t('overallScore')}: ${number(cumulativeScore)}`);$('hud-time').innerHTML=`${Math.floor(elapsed)}<small>.${Math.floor(elapsed*10)%10}</small>`;
+     // Each flight starts its visible score at zero. Lifetime/global totals
+     // remain available in the lobby, records, result note, and leaderboard.
+     $('hud-score').textContent=String(stageScore).padStart(6,'0');$('hud-score').setAttribute('aria-label',`${t('score')}: ${number(stageScore)}`);$('hud-time').innerHTML=`${Math.floor(elapsed)}<small>.${Math.floor(elapsed*10)%10}</small>`;
      document.querySelector('.hud-time').classList.remove('danger');
     if(force||lastHud.hp!==p.hp||lastHud.maxHp!==p.maxHp){$('hud-hp').innerHTML=Array.from({length:p.maxHp},(_,i)=>`<i class="${i>=p.hp?'empty':''}"></i>`).join('');$('hud-hp').setAttribute('aria-label',`${t('hull')}: ${p.hp} / ${p.maxHp}`);lastHud.hp=p.hp;lastHud.maxHp=p.maxHp;}
     if(force||lastHud.power!==p.power){$('hud-power').innerHTML=`<span>P${p.power}</span>`+[1,2,3,4,5].map(i=>`<i class="${i<=p.power?'full':''}"></i>`).join('');lastHud.power=p.power;}
@@ -1401,11 +1408,10 @@
     }else if(m.type==='error'){dismissible=false;html=`<h2 id="modal-title">CRAZY COMBAT</h2><p>${t('gameError')}</p><button class="primary-button" data-action="reload">RELOAD</button>`;}
     $('modal-root').innerHTML=`<div class="modal-card ${classes}" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1">${dismissible?`<button class="modal-close" data-action="close-modal" aria-label="${t('close')}">${icon('close')}</button>`:''}${html}</div>`;
     if(m.type==='result'){
-      const total=$('result-score'),stageScore=total?.nextElementSibling;
-      if(total)total.textContent=number(P().overallScore);
-      if(stageScore)stageScore.textContent=`${t('finalScore')} / ${number(m.result.score)}`;
+      const total=$('result-score');
+      if(total)total.textContent=number(m.result.score);
       const label=$('modal-root').querySelector('.result-card > .eyebrow');
-      if(label)label.textContent=`${t('overallScore')} / ${m.result.duration.toFixed(1)}s`;
+      if(label)label.textContent=`${t('finalScore')} / ${m.result.duration.toFixed(1)}s`;
     }
     if(m.type==='settings'){
       $('modal-root').querySelector('.settings-rows')?.insertAdjacentHTML('afterbegin',`<label class="setting-row"><span>${t('pilotName')}</span><input id="pilot-name" class="settings-input" maxlength="24" autocomplete="nickname" placeholder="${t('pilotNamePlaceholder')}" value="${escape(P().pilotName||'PILOT')}"></label>`);
@@ -1430,7 +1436,9 @@
   function action(name,button){
     if(name!=='shield')audio.sfx('ui');
     switch(name){
-       case 'launch':enterFlight();break;
+       case 'launch':startNewCampaign();break;
+       case 'new-campaign':startNewCampaign();break;
+       case 'continue':enterFlight(false,true);break;
        case 'retry':enterFlight(false,true);break;
       case 'home':
         if(['playing','paused','countdown','tutorial','resuming'].includes(engine.state)){ensurePause();action('abandon');}
@@ -1559,7 +1567,7 @@
           engine.draw();if(now-hudAt>40){refreshHud();hudAt=now;}
           audio.music(engine.state==='playing',!!engine.boss?.active);
           const m=topModal();if(m?.type==='result'&&$('result-score')){
-            const f=P().settings.reducedMotion?1:K.clamp((now-animationStart)/600,0,1),target=Math.min(C.score.totalCap,Math.max(0,Number(P().overallScore)||0));$('result-score').textContent=number(target*(1-(1-f)**3));
+            const f=P().settings.reducedMotion?1:K.clamp((now-animationStart)/600,0,1);$('result-score').textContent=number(m.result.score*(1-(1-f)**3));
           }
         }
         if(now-previewAt>50){drawPreviews(now/1000);previewAt=now;}

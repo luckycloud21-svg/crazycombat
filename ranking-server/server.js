@@ -154,7 +154,8 @@ function entry(row) {
     pilotName: row.pilot_name || row.name,
     itchUserId: row.itch_user_id || null,
     itchUsername: row.itch_username || null,
-    // score remains the public compatibility field; it now means cumulative score.
+    // score remains the public compatibility field; it means accumulated
+    // ranking points (stage score multiplied by stage number).
     score: totalScore,
     totalScore,
     stage: Number(row.stage),
@@ -226,6 +227,10 @@ app.post('/api/ranking', async (req, res) => {
     return res.status(400).json({ error: 'Invalid score or stage' });
   }
 
+  // Later stages contribute more to the global ranking:
+  // ranking points = this stage's score × stage number.
+  const rankingScore = runScore * stage;
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -268,7 +273,7 @@ app.post('/api/ranking', async (req, res) => {
          cleared_runs = ranking_players.cleared_runs + EXCLUDED.cleared_runs,
          updated_at = NOW()
        RETURNING player_id, name, pilot_name, itch_user_id, itch_username, total_score::float8 AS total_score, stage, runs, cleared_runs, updated_at`,
-      [playerId, name, user.id, user.username, runScore, stage, cleared ? 1 : 0]
+      [playerId, name, user.id, user.username, rankingScore, stage, cleared ? 1 : 0]
     );
 
     await client.query('COMMIT');
@@ -355,7 +360,7 @@ async function start() {
         'legacy-' || md5(lower(trim(name))),
         MAX(name),
         MAX(name),
-        SUM(score)::bigint,
+        SUM(score::bigint * stage::bigint)::bigint,
         MAX(stage),
         COUNT(*)::int,
         SUM(CASE WHEN cleared THEN 1 ELSE 0 END)::int,
@@ -370,6 +375,42 @@ async function start() {
        ON CONFLICT (key) DO NOTHING`
     );
     console.log('Migrated legacy scores into cumulative rankings.');
+  }
+
+  // One-time migration for accounts already stored in ranking_runs. Older
+  // versions accumulated the raw stage score, so rebuild totals using the new
+  // weighted formula without changing the individual run history.
+  const weightedMigration = await pool.query(
+    `SELECT key FROM ranking_meta WHERE key = 'weighted-score-v2'`
+  );
+  if (!weightedMigration.rowCount) {
+    await pool.query(`
+      UPDATE ranking_players AS players
+      SET total_score = weighted.total_score
+      FROM (
+        SELECT player_id, SUM(run_score::bigint * stage::bigint)::bigint AS total_score
+        FROM ranking_runs
+        GROUP BY player_id
+      ) AS weighted
+      WHERE players.player_id = weighted.player_id
+    `);
+    await pool.query(`
+      UPDATE ranking_players AS players
+      SET total_score = legacy.total_score
+      FROM (
+        SELECT
+          'legacy-' || md5(lower(trim(name))) AS player_id,
+          SUM(score::bigint * stage::bigint)::bigint AS total_score
+        FROM scores
+        GROUP BY lower(trim(name))
+      ) AS legacy
+      WHERE players.player_id = legacy.player_id
+    `);
+    await pool.query(
+      `INSERT INTO ranking_meta (key) VALUES ('weighted-score-v2')
+       ON CONFLICT (key) DO NOTHING`
+    );
+    console.log('Rebuilt ranking totals with stage-weighted scores.');
   }
 
   app.listen(port, '0.0.0.0', () => {
