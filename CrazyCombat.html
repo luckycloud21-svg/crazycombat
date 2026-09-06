@@ -43,6 +43,10 @@
     .settings-input{width:min(56%,260px);min-height:40px;padding:8px 10px;border:1px solid #3a5263;border-radius:7px;background:#142638;color:#c6d7df;font-size:11px}
     .settings-input::placeholder{color:#71899b}
   </style>
+<style>
+  .stat-bars i{background:#2c4555}
+  .stat-bars i.active{background:#6d98a1}
+</style>
 </head>
 <body>
   <div id="boot">CRAZY COMBAT <span>Initializing flight systems…</span></div>
@@ -92,7 +96,7 @@
         <aside id="right-flight-panel" class="flight-aside"></aside>
       </div>
     </section>
-    <footer id="footer" class="footer"><span id="footer-edition">HTML5 EDITION · v1.2.0</span><span id="footer-note">NO ADS. NO PAID STAT BOOSTS.</span><button data-action="privacy" class="text-button" id="footer-privacy">DATA & CREDITS</button></footer>
+    <footer id="footer" class="footer"><span id="footer-edition">HTML5 EDITION · v1.5.0</span><span id="footer-note">NO ADS. NO PAID STAT BOOSTS.</span><button data-action="privacy" class="text-button" id="footer-privacy">DATA & CREDITS</button></footer>
   </div>
   <div id="modal-root" class="modal-root hidden"></div>
   <div id="toast" class="toast hidden" role="status"></div>
@@ -106,13 +110,13 @@
   'use strict';
   const CC = root.CC = root.CC || {};
   CC.CONFIG = {
-    version: '1.2.0', configVersion: 'html5-campaign-1.2.0',
+    version: '1.5.0', configVersion: 'html5-campaign-1.5.0',
     totalStages: 1000,
     // HTTPS JSON endpoint: GET returns an array (or {entries:[]}); POST accepts score payloads.
     // It can be supplied by the host page or with ?leaderboard=https%3A%2F%2F… .
     leaderboardEndpoint: root.CRAZY_COMBAT_LEADERBOARD_ENDPOINT || (root.location?.search ? new URLSearchParams(root.location.search).get('leaderboard') || '' : '') || 'https://crazycombat.onrender.com/api/ranking',
     width: 432, height: 768, runSeconds: null, bossSpawnSeconds: 50,
-    player: { hp: 3, radius: 10, speed: 335, hitInvincible: 1, shieldSeconds: 3, shieldCooldown: 20, maxPower: 5 },
+    player: { hp: 3, maxHp: 3, radius: 10, speed: 335, hitInvincible: 1, shieldSeconds: 3, shieldCooldown: 20, maxPower: 5 },
     weapons: [
       { count: 1, interval: .25, damage: 10, spread: 0 },
       { count: 2, interval: .25, damage: 10, spread: 0 },
@@ -144,9 +148,14 @@
     specialMissile: { maxKi: 100, damage: 360, blastRadius: 180, hitRadius: 30, speed: 360, chargePerSecond: 48 },
     score: { survivalBonus: 1000, hpBonus: 300, cap: 999999, totalCap: 999999999, comboSeconds: 2 },
     ships: [
-      { id: 'falcon', name: 'FALCON', code: 'F-01', price: 0, color: '#ff965e' },
-      { id: 'nova', name: 'NOVA', code: 'N-02', price: 1500, color: '#73e7f0' },
-      { id: 'phantom', name: 'PHANTOM', code: 'P-03', price: 3500, color: '#bda2ff' }
+      // Stats are intentionally trade-offs rather than straight upgrades:
+      // FALCON is the baseline, NOVA is fast but fragile, PHANTOM is strong but slow.
+      { id: 'falcon', name: 'FALCON', code: 'F-01', price: 0, color: '#ff965e', stats: { firepower: 3, armor: 3, handling: 3 } },
+      { id: 'nova', name: 'NOVA', code: 'N-02', price: 1500, color: '#73e7f0', stats: { firepower: 4, armor: 2, handling: 5 } },
+      { id: 'phantom', name: 'PHANTOM', code: 'P-03', price: 3500, color: '#bda2ff', stats: { firepower: 5, armor: 4, handling: 2 } },
+      { id: 'orion', name: 'ORION', code: 'O-04', price: 6000, color: '#ffd36a', stats: { firepower: 5, armor: 4, handling: 4 } },
+      { id: 'apex', name: 'APEX', code: 'A-05', price: 10000, color: '#9cf7ff', stats: { firepower: 5, armor: 5, handling: 4 } },
+      { id: 'zenith', name: 'ZENITH', code: 'Z-06', price: 15000, color: '#f6c7ff', stats: { firepower: 5, armor: 5, handling: 5 } }
     ],
     missions: [
       { id: 'play_1', target: 1, reward: 100, tier: 0 },
@@ -189,6 +198,14 @@
   function weighted(weights, random = Math.random) { let p = random() * weights.reduce((a,b) => a+b, 0); for (let i=0; i<weights.length; i++) { p -= weights[i]; if (p < 0) return i; } return weights.length - 1; }
   function dateKey(date = new Date()) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
   function multiplier(combo) { return combo >= 30 ? 2 : combo >= 20 ? 1.5 : combo >= 10 ? 1.2 : combo >= 5 ? 1.1 : 1; }
+  function shipStats(id) {
+    const ship = C.ships.find(s => s.id === id), raw = ship?.stats || {};
+    return {
+      firepower: clamp(int(raw.firepower, 5) || 3, 1, 5),
+      armor: clamp(int(raw.armor, 5) || 3, 1, 5),
+      handling: clamp(int(raw.handling, 5) || 3, 1, 5)
+    };
+  }
   function stageDifficulty(stage = 1) {
     const s = clamp(int(stage, C.totalStages), 1, C.totalStages), n = s - 1;
     return { stage: s, enemy: 1 + Math.pow(n, .56) * .08, boss: 1 + Math.pow(n, .60) * .12,
@@ -252,10 +269,10 @@
     if (p.dailyMission.dateKey !== day) { p.dailyMission = { dateKey: day, missions: makeMissions(day) }; return true; }
     return false;
   }
-  function finalScore(stats, reason, hp) {
+  function finalScore(stats, reason, hp, maxHp = C.player.maxHp || 3) {
     const combat = int(stats.combatScore, C.score.cap), coins = int(stats.coinScore, C.score.cap);
     const survival = reason === 'clear' ? C.score.survivalBonus : 0;
-    const health = int(hp,3) * C.score.hpBonus;
+    const health = int(hp,maxHp) * C.score.hpBonus;
     return { combat, coins, survival, health, total: Math.min(C.score.cap, combat+coins+survival+health) };
   }
   function applyRun(p, r, day = dateKey()) {
@@ -344,7 +361,7 @@
       this.persist();
     }
   }
-  CC.Core = { clamp, int, clone, hash, rng, weighted, dateKey, multiplier, stageDifficulty, makeMissions, defaults, normalize, ensureDay, finalScore, applyRun, claimMission, buyShip, Pool, Store };
+  CC.Core = { clamp, int, clone, hash, rng, weighted, dateKey, multiplier, shipStats, stageDifficulty, makeMissions, defaults, normalize, ensureDay, finalScore, applyRun, claimMission, buyShip, Pool, Store };
   if (typeof module !== 'undefined' && module.exports) module.exports=CC.Core;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -357,11 +374,14 @@
      intro:'Hold Q to charge KI, release it to fire a straight special missile, and destroy the boss.', launch:'LAUNCH MISSION', ready:'READY FOR TAKEOFF', mission:'DAILY MISSIONS', campaign:'1,000-STAGE CAMPAIGN', stage:'STAGE', stages:'STAGES', currentStage:'CURRENT STAGE', overallScore:'OVERALL SCORE', overallRank:'OVERALL RANK',
     localDate:'Resets at local midnight', claim:'CLAIM', claimed:'CLAIMED', reward:'REWARD', best:'PERSONAL BEST', bestNote:'Your next flight could be your best.',
     hangar:'HANGAR', records:'FLIGHT RECORDS', settings:'SETTINGS', equipped:'EQUIPPED', equip:'EQUIP SHIP', owned:'OWNED', unlock:'UNLOCK', locked:'LOCKED',
-    chooseShip:'Choose your signature.', cosmetic:'Different silhouettes. The same firepower. All ships have identical stats.',
-    falconDesc:'The original interceptor. Ivory armor, amber markings, and a steady blue flame.',
-    novaDesc:'A cool-blue silhouette with a compact, brilliant engine trail.',
-    phantomDesc:'Violet armor and an ethereal afterimage. Built to be remembered.',
-    falconType:'STANDARD INTERCEPTOR', novaType:'ION INTERCEPTOR', phantomType:'STEALTH INTERCEPTOR',
+    chooseShip:'Choose your signature.', cosmetic:'Every ship has a different combat profile. Pick your advantage.',
+    falconDesc:'The balanced interceptor. Reliable firepower, armor, and handling for every stage.',
+    novaDesc:'The agile ion interceptor. Faster handling and strong firepower, with lighter armor.',
+    phantomDesc:'The armored stealth interceptor. Maximum firepower and heavier armor, with slower handling.',
+    falconType:'STANDARD INTERCEPTOR', novaType:'ION INTERCEPTOR', phantomType:'STEALTH INTERCEPTOR', orionType:'STRIKE INTERCEPTOR', apexType:'APEX INTERCEPTOR', zenithType:'ZENITH INTERCEPTOR',
+    orionDesc:'A high-output strike interceptor with elite firepower, armor, and agile handling.',
+    apexDesc:'Apex-grade interceptor with maximum firepower and armor, plus precise high-level handling.',
+    zenithDesc:'The ultimate interceptor. Maximum firepower, armor, and handling for veteran pilots.',
     firepower:'FIREPOWER', armor:'ARMOR', handling:'HANDLING', back:'BACK', coins:'COINS', wallet:'YOUR BALANCE',
     insufficient:'Earn {n} more coins to unlock this ship.', buyTitle:'Unlock {name}?', buyBody:'Spend {n} coins on this cosmetic ship. No real money is used.',
     confirmBuy:'UNLOCK & EQUIP', shipUnlocked:'{name} unlocked and equipped.', shipEquipped:'{name} equipped.',
@@ -400,7 +420,7 @@
     fullscreen:'FULLSCREEN', fullscreenUnavailable:'Fullscreen is unavailable here. Use the host’s fullscreen button.', mute:'TOGGLE SOUND',
     saveRecovered:'A damaged save was recovered. Check your progress and keep an exported backup.', saveUnavailable:'Browser storage is unavailable. Progress lasts only for this session; export a save to keep it.',
     lowEffects:'Reduced effects enabled for smoother play.', close:'CLOSE', rotate:'Rotate for takeoff.', rotateDesc:'This flight uses a portrait playfield. Turn your phone upright to continue.',
-     version:'HTML5 EDITION · v1.2.0', threat:'THREAT LEVEL', countdownBoss:'BOSS AT 00:50', endpoint:'DEFEAT THE BOSS',
+     version:'HTML5 EDITION · v1.5.0', threat:'THREAT LEVEL', countdownBoss:'BOSS AT 00:50', endpoint:'DEFEAT THE BOSS',
     supply:'SUPPLY INBOUND', hpFull:'FULL HULL · +2', powerFull:'MAX POWER · +4', magnet:'MAGNET', secured:'SECTOR SECURED',
     play_1:'Complete 1 flight', kill_50:'Destroy 50 enemies', kill_100:'Destroy 100 enemies', combo_15:'Reach a 15-kill combo',
     power_5:'Reach POWER level 5', survive_60:'Survive a full 60 seconds', boss_kill:'Destroy the boss', shield_2:'Use 2 shields in one flight', coin_40:'Collect 40 coins in one flight',
@@ -413,11 +433,14 @@
      intro:'Q를 눌러 기를 모으고, 손을 떼 특수 미사일을 발사해 보스를 격파하세요.', launch:'전투 시작', ready:'출격 준비 완료', mission:'오늘의 미션',
     localDate:'기기 시간 기준 자정에 초기화', claim:'받기', claimed:'수령 완료', reward:'보상', best:'나의 최고 점수', bestNote:'다음 비행에서 기록을 새로 써보세요.',
     hangar:'격납고', records:'비행 기록', settings:'설정', equipped:'장착 중', equip:'장착하기', owned:'보유 중', unlock:'해금하기', locked:'미보유',
-    chooseShip:'나만의 기체를 선택하세요.', cosmetic:'외형은 다르게, 성능은 동일하게. 모든 기체의 능력치는 같습니다.',
-    falconDesc:'기본 전투기. 밝은 장갑과 주황색 포인트, 푸른 엔진 불꽃.',
-    novaDesc:'청명한 청색 기체와 짧고 선명한 엔진 궤적.',
-    phantomDesc:'보라색 장갑과 잔상으로 기억에 남는 비행.',
-    falconType:'기본 전투기', novaType:'이온 전투기', phantomType:'스텔스 전투기',
+    chooseShip:'나만의 기체를 선택하세요.', cosmetic:'기체마다 전투 특성이 달라요. 나에게 맞는 장점을 선택하세요.',
+    falconDesc:'공격력·방어력·기동력이 균형 잡힌 기본 전투기.',
+    novaDesc:'기동력과 공격력이 뛰어나지만 장갑이 가벼운 이온 전투기.',
+    phantomDesc:'공격력과 장갑이 강하지만 기동력이 낮은 중장갑 스텔스 전투기.',
+    falconType:'기본 전투기', novaType:'이온 전투기', phantomType:'스텔스 전투기', orionType:'강습 전투기', apexType:'정밀 전투기', zenithType:'최상급 전투기',
+    orionDesc:'강력한 공격력과 장갑, 뛰어난 기동력을 갖춘 엘리트 강습 전투기.',
+    apexDesc:'최고의 공격력과 장갑에 정밀한 기동력을 더한 상급 전투기.',
+    zenithDesc:'공격력·방어력·기동력이 모두 최고인 베테랑 파일럿용 최종 기체.',
     firepower:'공격력', armor:'방어력', handling:'기동력', back:'뒤로', coins:'코인', wallet:'보유 코인',
     insufficient:'해금하려면 코인 {n}개가 더 필요해요.', buyTitle:'{name} 기체를 해금할까요?', buyBody:'게임 코인 {n}개로 외형 기체를 해금해요. 실제 돈은 사용하지 않아요.',
     confirmBuy:'해금하고 장착', shipUnlocked:'{name} 기체를 해금하고 장착했어요.', shipEquipped:'{name} 기체를 장착했어요.',
@@ -456,7 +479,7 @@
     fullscreen:'전체 화면', fullscreenUnavailable:'여기서는 전체 화면을 사용할 수 없어요. itch.io의 전체 화면 버튼을 이용하세요.', mute:'소리 전환',
     saveRecovered:'손상된 저장 정보를 복구했어요. 기록을 확인하고 파일로 백업해 두세요.', saveUnavailable:'브라우저 저장소를 사용할 수 없어요. 이 세션에서만 유지되니 저장 파일을 내보내세요.',
     lowEffects:'원활한 플레이를 위해 효과를 줄였어요.', close:'닫기', rotate:'화면을 세로로 돌려주세요.', rotateDesc:'세로형 전투 화면이에요. 휴대폰을 세워 계속 플레이하세요.',
-     version:'HTML5 에디션 · v1.2.0', threat:'위험 단계', countdownBoss:'보스 00:50', endpoint:'보스 격파',
+     version:'HTML5 에디션 · v1.5.0', threat:'위험 단계', countdownBoss:'보스 00:50', endpoint:'보스 격파',
     supply:'보급 접근', hpFull:'최대 체력 · +2', powerFull:'최대 파워 · +4', magnet:'자석', secured:'구간 확보',
     play_1:'전투 1회 완료', kill_50:'일반 적 50기 처치', kill_100:'일반 적 100기 처치', combo_15:'15 콤보 달성',
     power_5:'POWER 5단계 달성', survive_60:'60초 동안 생존', boss_kill:'보스 1기 격파', shield_2:'한 전투에서 쉴드 2회 사용', coin_40:'한 전투에서 코인 40개 획득',
@@ -477,7 +500,10 @@
   const CC=root.CC, TAU=Math.PI*2;
   const palettes={ falcon:{body:'#f2eee2', shade:'#8195a3', dark:'#223a4b', accent:'#ff965e', glow:'#66deff'},
     nova:{body:'#cdf7fa',shade:'#56bacb',dark:'#164058',accent:'#72f1ed',glow:'#5effe8'},
-    phantom:{body:'#d7d0f7',shade:'#8376b6',dark:'#302b57',accent:'#c19bff',glow:'#b084ff'} };
+    phantom:{body:'#d7d0f7',shade:'#8376b6',dark:'#302b57',accent:'#c19bff',glow:'#b084ff'},
+    orion:{body:'#fff0b5',shade:'#c18c43',dark:'#493720',accent:'#ffd36a',glow:'#ffe39a'},
+    apex:{body:'#e9ffff',shade:'#78cbd3',dark:'#16414b',accent:'#9cf7ff',glow:'#b8ffff'},
+    zenith:{body:'#fff0ff',shade:'#c18bc8',dark:'#48264d',accent:'#f6c7ff',glow:'#ffd9ff'} };
   function path(c,points,fill,stroke,line=1) {
     c.beginPath(); points.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1])); c.closePath();
     if(fill){c.fillStyle=fill;c.fill();} if(stroke){c.strokeStyle=stroke;c.lineWidth=line;c.stroke();}
@@ -704,7 +730,8 @@
     reset(planeId,stage=1){
       for(const pool of Object.values(this.pools))pool.clear();
       this.stage=K.clamp(K.int(stage,C.totalStages)||1,1,C.totalStages);this.difficulty=K.stageDifficulty(this.stage);
-      this.p={x:C.width/2,y:C.height-133,hp:3,power:1,ki:0,invincible:0,shield:0,cooldown:0,magnet:0,bank:0};
+      this.shipStats=K.shipStats(planeId);
+      this.p={x:C.width/2,y:C.height-133,hp:this.shipStats.armor,maxHp:this.shipStats.armor,power:1,ki:0,invincible:0,shield:0,cooldown:0,magnet:0,bank:0};
       this.stats={combatScore:0,coinScore:0,coins:0,kills:0,specialMissiles:0,killsByType:{scout:0,curveL:0,curveR:0,dash:0,heavy:0},combo:0,maxCombo:0,maxPower:1,shieldUses:0,bossKilled:false};
       this.elapsed=0;this.spawnAt=.45;this.nextShot=0;this.comboClock=0;this.boss=null;this.bossSpawned=false;this.firstPower=false;this.supportAt=52.5;
       this.planeId=planeId;this.shake=0;this.hitFlash=0;this.target=null;this.lastMove=0;this.moveTime=0;this.result=null;this.banner=null;this.visualTime=0;
@@ -726,6 +753,7 @@
     abort(){this.finished=true;for(const p of Object.values(this.pools))p.clear();this.boss=null;this.target=null;this.setState('idle');}
     move(dx,dy){
       if(!['playing','tutorial'].includes(this.state))return;
+      const handling=1+(this.shipStats.handling-3)*.08;dx*=handling;dy*=handling;
       this.p.x=K.clamp(this.p.x+dx,22,C.width-22);this.p.y=K.clamp(this.p.y+dy,116,C.height-108);
       this.lastMove=.09;this.p.bank=K.clamp(dx*.012,-.20,.20);
     }
@@ -787,10 +815,10 @@
       }
     }
     fire(){
-      const p=this.p,w=C.weapons[p.power-1],speed=C.browserTuning.bulletSpeed;
+      const p=this.p,w=C.weapons[p.power-1],speed=C.browserTuning.bulletSpeed,damageMultiplier=1+(this.shipStats.firepower-3)*.10;
       for(let i=0;i<w.count;i++){
         const offset=(i-(w.count-1)/2)*(w.count===2?14:12),angle=(i-(w.count-1)/2)*w.spread;
-        this.pools.bullets.take({x:p.x+offset,y:p.y-28,vx:Math.sin(angle)*speed,vy:-Math.cos(angle)*speed,damage:w.damage,r:3});
+        this.pools.bullets.take({x:p.x+offset,y:p.y-28,vx:Math.sin(angle)*speed,vy:-Math.cos(angle)*speed,damage:Math.round(w.damage*damageMultiplier),r:3});
       }
       this.audio.sfx('shot');
     }
@@ -940,7 +968,7 @@
       }
     }
     specialBlast(x,y){
-      const radius=C.specialMissile.blastRadius,damage=Math.round(C.specialMissile.damage*(1+Math.log1p(this.stage-1)*.08));
+      const radius=C.specialMissile.blastRadius,damageMultiplier=1+(this.shipStats.firepower-3)*.10,damage=Math.round(C.specialMissile.damage*damageMultiplier*(1+Math.log1p(this.stage-1)*.08));
       this.suppressKi=true;
       for(const e of this.pools.enemies.items)if(e.active&&Math.hypot(e.x-x,e.y-y)<radius+e.r){e.hp-=damage;e.flash=.12;if(e.hp<=0)this.killEnemy(e);}
       if(this.boss?.active&&Math.hypot(this.boss.x-x,this.boss.y-y)<radius+C.boss.radius){this.boss.hp-=damage;if(this.boss.hp<=0)this.killBoss();}
@@ -953,7 +981,7 @@
         this.audio.sfx('power');this.burst(p.x,p.y,'#95e7ed',9,60);
         switch(i.type){
           case 'power':if(p.power<C.player.maxPower){p.power++;this.stats.maxPower=Math.max(this.stats.maxPower,p.power);label=`POWER ${p.power}`;}else{this.addCoins(4);label=this.cb.t?.('powerFull')||'+4';}break;
-          case 'hp':if(p.hp<3){p.hp++;label='+1 HP';}else{this.addCoins(2);label=this.cb.t?.('hpFull')||'+2';}color='#ffafbd';break;
+          case 'hp':if(p.hp<p.maxHp){p.hp++;label='+1 HP';}else{this.addCoins(2);label=this.cb.t?.('hpFull')||'+2';}color='#ffafbd';break;
           case 'magnet':p.magnet=p.magnet>0?Math.min(8,p.magnet+3):5;label=this.cb.t?.('magnet')||'MAGNET';break;
           case 'shield':p.shield=3;label=this.cb.t?.('shield')||'SHIELD';break;
         }
@@ -984,7 +1012,7 @@
     }
     finish(reason){
       if(this.state!=='playing'||this.finished)return false;
-      this.finished=true;const breakdown=K.finalScore(this.stats,reason,this.p.hp);
+      this.finished=true;const breakdown=K.finalScore(this.stats,reason,this.p.hp,this.p.maxHp);
       this.result={runId:this.runId,reason,stage:this.stage,cleared:reason==='clear',score:breakdown.total,breakdown,coins:this.stats.coins,kills:this.stats.kills,specialMissiles:this.stats.specialMissiles,killsByType:{...this.stats.killsByType},maxCombo:this.stats.maxCombo,
         maxPower:this.stats.maxPower,shieldUses:this.stats.shieldUses,bossKilled:this.stats.bossKilled,hp:this.p.hp,duration:this.elapsed,planeId:this.planeId,
         startedAt:this.startedAt,endedAt:new Date().toISOString(),configVersion:C.configVersion};
@@ -1139,6 +1167,18 @@
   }
   function bindPreviews(){previews=Array.from(document.querySelectorAll('canvas[data-ship]'));drawPreviews(0);}
   function drawPreviews(time){for(const canvas of previews){if(canvas.getClientRects().length)CC.Art.preview(canvas,canvas.dataset.ship,P().settings.reducedMotion?0:time,canvas.classList.contains('hero-preview'));}}
+  function applyHangarStats(){
+    if(view!=='hangar')return;
+    document.querySelectorAll('.ship-card').forEach((card,index)=>{
+      const stats=C.ships[index]?.stats||{firepower:3,armor:3,handling:3};
+      ['firepower','armor','handling'].forEach((key,row)=>{
+        const bars=card.querySelectorAll('.ship-stat')[row]?.querySelectorAll('.stat-bars i');
+        bars?.forEach((bar,i)=>bar.classList.toggle('active',i<stats[key]));
+        const track=card.querySelectorAll('.ship-stat')[row]?.querySelector('.stat-bars');
+        track?.setAttribute('aria-label',`${t(key)}: ${stats[key]} / 5`);
+      });
+    });
+  }
   function missionCard(m,index){
     const d=C.missions.find(x=>x.id===m.id),complete=m.progress>=d.target;
     return `<article class="mission-card"><div class="mission-head"><div><div class="mission-number">0${index+1} / ${['I','II','III'][index]}</div><div class="mission-name">${t(m.id)}</div></div><div class="mission-reward">✦ ${d.reward}</div></div><div class="mission-progress"><div class="progress-track"><i style="width:${Math.min(100,m.progress/d.target*100)}%"></i></div>${complete?`<button class="claim-button" data-action="claim" data-id="${m.id}" ${m.claimed?'disabled':''}>${t(m.claimed?'claimed':'claim')}</button>`:`<span>${m.progress}/${d.target}</span>`}</div></article>`;
@@ -1193,7 +1233,7 @@
     if(view==='flight')return;
     if(K.ensureDay(P()))store.persist();
      $('menu').innerHTML=view==='hangar'?hangarHTML():view==='records'?recordsHTML():lobbyHTML();
-     renderHeader();bindPreviews();
+     renderHeader();bindPreviews();applyHangarStats();
      if(view==='records'&&globalBoard.status==='idle')loadGlobalLeaderboard();
   }
   function showView(next){
@@ -1224,7 +1264,7 @@
      const p=engine.p,s=engine.stats,state=engine.state,elapsed=engine.elapsed,score=Math.min(C.score.cap,s.combatScore+s.coinScore);
      $('hud-score').textContent=String(score).padStart(6,'0');$('hud-time').innerHTML=`${Math.floor(elapsed)}<small>.${Math.floor(elapsed*10)%10}</small>`;
      document.querySelector('.hud-time').classList.remove('danger');
-    if(force||lastHud.hp!==p.hp){$('hud-hp').innerHTML=[0,1,2].map(i=>`<i class="${i>=p.hp?'empty':''}"></i>`).join('');$('hud-hp').setAttribute('aria-label',`${t('hull')}: ${p.hp} / 3`);lastHud.hp=p.hp;}
+    if(force||lastHud.hp!==p.hp||lastHud.maxHp!==p.maxHp){$('hud-hp').innerHTML=Array.from({length:p.maxHp},(_,i)=>`<i class="${i>=p.hp?'empty':''}"></i>`).join('');$('hud-hp').setAttribute('aria-label',`${t('hull')}: ${p.hp} / ${p.maxHp}`);lastHud.hp=p.hp;lastHud.maxHp=p.maxHp;}
     if(force||lastHud.power!==p.power){$('hud-power').innerHTML=`<span>P${p.power}</span>`+[1,2,3,4,5].map(i=>`<i class="${i<=p.power?'full':''}"></i>`).join('');lastHud.power=p.power;}
      $('hud-progress').style.width=Math.min(100,engine.elapsed/C.bossSpawnSeconds*100)+'%';
      $('hud-stage-label').textContent=`${t('stage')} ${String(engine.stage).padStart(3,'0')} / ${C.totalStages}`;
