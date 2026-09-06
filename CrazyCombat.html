@@ -328,7 +328,7 @@
     const offsets = { scout: 0, curveL: 29, curveR: 61, dash: 97, heavy: 137 }, offset = offsets[type] || 0, hue = (s * 37 + offset) % 360;
     return {
       variant: s * 11 + offset,
-      accent: `hsl(${hue} 88% 70%)`, body: `hsl(${(hue + 19) % 360} 45% 27%)`, wing: `hsl(${(hue + 345) % 360} 63% 50%)`, core: `hsl(${(hue + 55) % 360} 78% 76%)`, dark: `hsl(${hue} 42% 13%)`,
+      accent: `hsl(${hue}, 88%, 70%)`, body: `hsl(${(hue + 19) % 360}, 45%, 27%)`, wing: `hsl(${(hue + 345) % 360}, 63%, 50%)`, core: `hsl(${(hue + 55) % 360}, 78%, 76%)`, dark: `hsl(${hue}, 42%, 13%)`,
       width: .91 + ((s * 17 + offset) % 18) / 100, height: .92 + ((s * 23 + offset) % 16) / 100,
       tilt: (((s * 13 + offset) % 700) - 350) / 10000, modules: (s + Math.floor(offset / 20)) % 4,
       pattern: Math.min(3, Math.floor(progress * 4)), patternStrength: progress
@@ -340,7 +340,7 @@
     // the armor shell and weapon pressure grow continuously across the campaign.
     return {
       variant: s,
-      accent: `hsl(${(s * 47) % 360} 82% 70%)`,
+      accent: `hsl(${(s * 47) % 360}, 82%, 70%)`,
       scale: .94 + ((s * 29) % 17) / 100,
       width: .92 + ((s * 17) % 19) / 100,
       height: .94 + ((s * 31) % 15) / 100,
@@ -668,6 +668,19 @@
     if(fill){c.fillStyle=fill;c.fill();} if(stroke){c.strokeStyle=stroke;c.lineWidth=line;c.stroke();}
   }
   function line(c,points,color,width=1) { c.beginPath();points.forEach((p,i)=>i?c.lineTo(...p):c.moveTo(...p));c.strokeStyle=color;c.lineWidth=width;c.stroke(); }
+  function colorWithAlpha(color,alpha=.5) {
+    const value=String(color||'#ffffff').trim(),a=Math.max(0,Math.min(1,Number(alpha)||0));
+    const hex=value.match(/^#([\da-f]{3}|[\da-f]{4}|[\da-f]{6}|[\da-f]{8})$/i);
+    if(hex){
+      let rgb=hex[1];if(rgb.length===3||rgb.length===4)rgb=rgb.slice(0,3).split('').map(x=>x+x).join('');
+      if(rgb.length===8)rgb=rgb.slice(0,6);return `#${rgb}${Math.round(a*255).toString(16).padStart(2,'0')}`;
+    }
+    const hsl=value.match(/^hsl\(\s*([\d.+-]+)\s*(?:,|\s)\s*([\d.]+%)\s*(?:,|\s)\s*([\d.]+%)\s*\)$/i);
+    if(hsl)return `hsla(${hsl[1]}, ${hsl[2]}, ${hsl[3]}, ${a})`;
+    const rgb=value.match(/^rgb\(\s*([\d.]+)\s*(?:,|\s)\s*([\d.]+)\s*(?:,|\s)\s*([\d.]+)\s*\)$/i);
+    if(rgb)return `rgba(${rgb[1]}, ${rgb[2]}, ${rgb[3]}, ${a})`;
+    return value;
+  }
   function glow(c,x,y,r,color) { const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,color);g.addColorStop(1,'transparent');c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2); }
   function ship(c,x,y,scale=1,id='falcon',bank=0,time=0,trail=true) {
     const p=palettes[id]||palettes.falcon;
@@ -764,14 +777,14 @@
       path(c,[[s*45,7],[s*74,11],[s*71,22],[s*44,15]],theme.curve);
       path(c,[[s*65,-7],[s*87,0],[s*85,9],[s*65,6]],theme.heavy);
       path(c,[[s*41,-4],[s*51,-2],[s*49,36],[s*40,32]],theme.dark,theme.wing,1);
-      glow(c,s*45,34,17,accent+'99');c.fillStyle=accent;c.fillRect(s*45-3,29,6,9);
+      glow(c,s*45,34,17,colorWithAlpha(accent,.60));c.fillStyle=accent;c.fillRect(s*45-3,29,6,9);
       for(let i=0;i<3;i++){c.fillStyle='#142837';c.fillRect(s*56-3,-23+i*6,7,3);}
     });
     path(c,[[-23,-43],[0,-54],[23,-43],[30,-3],[18,39],[0,53],[-18,39],[-30,-3]],theme.dark,theme.wing,1.4);
     path(c,[[0,-48],[-17,-36],[-20,-7],[-10,9],[0,17],[10,9],[20,-7],[17,-36]],theme.wing);
     path(c,[[0,19],[-12,11],[-8,34],[0,45],[8,34],[12,11]],theme.curve);
     c.strokeStyle=accent;c.lineWidth=2;c.beginPath();c.arc(0,-9,14,0,TAU);c.stroke();
-    glow(c,0,-9,20,accent+'88');c.fillStyle='#ffebe0';c.beginPath();c.arc(0,-9,7,0,TAU);c.fill();
+    glow(c,0,-9,20,colorWithAlpha(accent,.53));c.fillStyle='#ffebe0';c.beginPath();c.arc(0,-9,7,0,TAU);c.fill();
     if(b.flash>0){c.globalAlpha=.5;c.fillStyle='#ffffff';c.beginPath();c.arc(0,-9,13,0,TAU);c.fill();}
     c.restore();
   }
@@ -839,7 +852,7 @@
     const s=Math.min(r.width/160,r.height/158)*(large?1.1:.94);
     ship(c,cx,cy+Math.sin(time*1.2)*4,s,id,large?-.35:-.10,time,true);
   }
-  CC.Art={path,line,glow,ship,enemy,boss,star,item,Space,preview,palettes};
+  CC.Art={path,line,glow,ship,enemy,boss,star,item,Space,preview,palettes,colorWithAlpha};
 })(window);
 
 </script>
