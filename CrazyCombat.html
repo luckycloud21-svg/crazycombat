@@ -85,6 +85,50 @@
   .modal-card>p,.manual-section p,.manual-rule{font-size:14px}.control-line,.item-line{font-size:13px}.settings-note{font-size:12px}.setting-row{font-size:14px}.score-breakdown span,.result-stats span{font-size:10px}.result-details{font-size:11px}.result-card .result-note{font-size:11px}
   @media(max-width:680px){body{font-size:15px}.hero-description,.page-heading p,.ship-card p{font-size:13px}.global-row{font-size:13px}.global-row .global-score,.global-row .global-score>span{font-size:19px}.flight-aside>p,.aside-tip{font-size:12px}.keycap{font-size:10px}}
 </style>
+<style id="responsive-flight-layout">
+  html,body{overflow-x:hidden}
+  .in-flight{overflow-x:hidden;overflow-y:auto;min-height:100vh;min-height:100dvh}
+  .in-flight .shell{width:100%;max-width:1440px}
+  .in-flight .game-screen{min-height:calc(100vh - 67px);min-height:calc(100dvh - 67px);padding-top:clamp(6px,1.3vh,18px)}
+  .game-layout{width:100%;display:grid;grid-template-columns:minmax(150px,196px) minmax(0,1fr) minmax(150px,196px);gap:clamp(14px,2vw,30px);align-items:stretch}
+  .game-field{justify-self:center;width:var(--game-field-width,100%);height:auto;aspect-ratio:9/16;max-width:100%;flex:none}
+  .flight-aside{width:auto;min-width:0;flex:initial;overflow-wrap:anywhere}
+  .flight-responsive-hint{display:none}
+  @media(max-width:720px),(max-height:700px){
+    .flight-responsive-hint{display:block;margin:0 auto 7px;padding:6px 9px;text-align:center;color:#b8d4d9;background:#102637;border:1px solid #294858;border-radius:7px;font-size:10px;line-height:1.35;letter-spacing:.35px}
+  }
+  @media(max-width:1150px),(max-height:700px){
+    .game-layout{grid-template-columns:minmax(0,1fr) 184px;gap:18px}
+    #left-flight-panel{display:none}
+    #right-flight-panel{display:flex}
+    .flight-aside{padding-top:14px}
+    .flight-aside h2{font-size:24px}
+    .flight-aside>p{font-size:11px;line-height:1.65}
+    .aside-control{margin-bottom:15px}
+  }
+  @media(max-width:720px){
+    .in-flight .shell{padding-left:max(9px,env(safe-area-inset-left));padding-right:max(9px,env(safe-area-inset-right))}
+    .in-flight .masthead{height:58px;padding-left:6px;padding-right:6px;padding-top:env(safe-area-inset-top)}
+    .in-flight .game-screen{padding-top:7px}
+    .game-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start}
+    #game-field{grid-column:1;grid-row:1}
+    #right-flight-panel{grid-column:1;grid-row:2;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#0e1d2b;align-self:auto}
+    #right-flight-panel>.eyebrow,#right-flight-panel>.section-label,#right-flight-panel>.micro,#right-flight-panel>.threat-bars,#right-flight-panel>.aside-tip{grid-column:1/-1}
+    #right-flight-panel>.aside-ship,#right-flight-panel>.aside-divider{display:none}
+    #right-flight-panel>.aside-stat{min-width:0;margin:0;padding:6px 8px;border:1px solid var(--line-soft);border-radius:7px}
+    #right-flight-panel>.aside-stat>span{font-size:9px}
+    #right-flight-panel>.aside-stat>strong{font-size:13px}
+    #right-flight-panel>.threat-bars{margin:0}
+    #right-flight-panel>.aside-tip{margin:0!important}
+    .game-field{border-radius:11px}
+  }
+  @media(max-width:380px){
+    .flight-responsive-hint{font-size:9px;letter-spacing:0}
+    #right-flight-panel{gap:7px;padding:9px}
+    #right-flight-panel>.aside-stat{padding:5px 6px}
+    #right-flight-panel>.aside-stat>strong{font-size:12px}
+  }
+</style>
 </head>
 <body>
   <div id="boot">CRAZY COMBAT <span>Initializing flight systems…</span></div>
@@ -106,6 +150,7 @@
     </header>
     <main id="menu" class="menu"></main>
     <section id="game-screen" class="game-screen hidden" aria-label="Flight">
+      <div id="flight-responsive-hint" class="flight-responsive-hint" aria-live="polite"></div>
       <div id="game-layout" class="game-layout">
         <aside id="left-flight-panel" class="flight-aside"></aside>
         <div id="game-field" class="game-field">
@@ -551,7 +596,7 @@
     maxCombo:'MAX COMBO', earned:'COINS EARNED', survived:'FLIGHT TIME', defeated:'DESTROYED', escaped:'NOT DESTROYED', retry:'FLY AGAIN',
      coinsSaved:'Coins already added to your balance.', noAds:'No ads. No paid stat boosts.', localOnly:'Settings and offline records stay on this browser.', rankingLocal:'LOCAL OVERALL RANKING', rankRuns:'Ranked by stage score across all of your runs.',
     help:'FLIGHT MANUAL', controls:'CONTROLS', move:'MOVE', keyboard:'Arrow keys / WASD', mouse:'MOUSE', mouseMove:'Drag the playfield to move', drag:'Drag anywhere in the playfield',
-    shieldHelp:'Space / Shift or the shield button', pauseHelp:'Escape / P', focusHelp:'Click or tap the game once to give it keyboard focus.',
+    shieldHelp:'Space / Shift or the shield button', pauseHelp:'Escape / P', focusHelp:'Click or tap the game once to give it keyboard focus.', responsiveControls:'MOVE: MOUSE DRAG · ARROW KEYS / WASD · SHIELD: SPACE · SUPER BOMB: E',
      rules:'MISSION BRIEFING', rule1:'There is no time limit. Defeat the boss to clear the stage.',
      rule2:'Clear the stage to unlock the next one. There are 1,000 stages, and every stage gets harder.',
     rule3:'Your shield lasts 3 seconds and recharges every 20 seconds.',
@@ -611,7 +656,7 @@
     maxCombo:'최대 콤보', earned:'획득 코인', survived:'비행 시간', defeated:'격파 성공', escaped:'미격파', retry:'다시 도전',
      coinsSaved:'획득 코인이 잔액에 반영됐어요.', noAds:'광고 없음 · 유료 능력치 없음', localOnly:'이 브라우저에만 저장돼요.', rankingLocal:'로컬 종합 랭킹', rankRuns:'모든 전투 기록을 스테이지 점수순으로 정렬해요.',
     help:'비행 매뉴얼', controls:'조작 방법', move:'이동', keyboard:'방향키 / WASD', mouse:'마우스', mouseMove:'게임 영역을 드래그해 이동', drag:'게임 영역을 손가락으로 드래그',
-    shieldHelp:'Space / Shift 또는 쉴드 버튼', pauseHelp:'Escape / P', focusHelp:'키보드가 반응하지 않으면 게임을 한 번 클릭하세요.',
+    shieldHelp:'Space / Shift 또는 쉴드 버튼', pauseHelp:'Escape / P', focusHelp:'키보드가 반응하지 않으면 게임을 한 번 클릭하세요.', responsiveControls:'이동: 마우스 드래그 · 방향키 / WASD · 쉴드: SPACE · 슈퍼밤: E',
      rules:'전투 안내', rule1:'시간 제한은 없어요. 보스를 격파하면 스테이지가 클리어돼요.',
      rule2:'스테이지를 클리어하면 다음 단계가 열려요. 총 1,000단계이며 점점 어려워져요.',
     rule3:'쉴드는 3초 동안 무적이며, 재사용 대기시간은 20초예요.',
@@ -1509,6 +1554,7 @@
     document.querySelector('#shield-button .shield-icon').innerHTML=icon('shield');$('shield-button').setAttribute('aria-label',t('shield'));
     $('footer-edition').textContent=t('version');$('footer-note').textContent=t('noAds');$('footer-privacy').textContent=t('privacy');
     document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));
+    const responsiveHint=$('flight-responsive-hint');if(responsiveHint)responsiveHint.textContent=t('responsiveControls');
     $('flight-canvas').setAttribute('aria-label',`${t('controls')}. ${t('keyboard')}. ${t('mouseMove')}. ${t('shieldHelp')}. ${t('superBombHelp')}. ${t('pauseHelp')}.`);
   }
   function bindPreviews(){previews=Array.from(document.querySelectorAll('canvas[data-ship]'));drawPreviews(0);}
@@ -1864,13 +1910,14 @@
   });
   function resize(){
     if(view==='flight'){
-      const top=$('game-layout').getBoundingClientRect().top+root.scrollY,availableH=Math.max(120,(document.documentElement.clientHeight||root.innerHeight)-top-12),totalW=$('game-layout').clientWidth;
-      const sides=matchMedia('(min-width:881px) and (min-height:651px)').matches;
-      const availableW=totalW-(sides?(root.innerWidth>1050?452:388):0);
-      // Give desktop and itch.io embeds a larger playfield while preserving the
-      // portrait aspect ratio and fitting the current viewport.
-      const width=Math.max(145,Math.min(540,availableW,availableH*9/16));
-      $('game-field').style.width=width+'px';$('game-field').style.height=width*16/9+'px';engine.resize();
+      const layout=$('game-layout'),field=$('game-field'),viewportW=document.documentElement.clientWidth||root.innerWidth,viewportH=document.documentElement.clientHeight||root.innerHeight;
+      const top=Math.max(0,layout.getBoundingClientRect().top),compact=viewportW<=720,oneSide=!compact&&(viewportW<=1150||viewportH<=700),sideCount=compact?0:oneSide?1:2;
+      const sideWidth=sideCount?$('right-flight-panel').getBoundingClientRect().width*sideCount:0,gap=parseFloat(getComputedStyle(layout).columnGap||getComputedStyle(layout).gap)||0;
+      const availableW=Math.max(120,layout.clientWidth-sideWidth-gap*sideCount),availableH=Math.max(180,viewportH-top-12);
+      // Keep the 9:16 playfield readable in ordinary browser windows while
+      // allowing the page to scroll when the viewport is shorter than the field.
+      const width=Math.max(120,Math.min(540,availableW,availableH*9/16));
+      field.style.setProperty('--game-field-width',width+'px');field.style.width=width+'px';field.style.height=width*16/9+'px';engine.resize();
       // Portrait is preserved by letterboxing, not an unsupported browser orientation lock.
       const landscapePhone=matchMedia('(pointer:coarse)').matches&&root.innerWidth>root.innerHeight&&root.innerHeight<480;
       $('rotate-notice').classList.toggle('hidden',!landscapePhone);if(landscapePhone)engine.pause();
