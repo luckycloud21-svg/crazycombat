@@ -201,12 +201,15 @@
     leaderboardEndpoint: root.CRAZY_COMBAT_LEADERBOARD_ENDPOINT || (root.location?.search ? new URLSearchParams(root.location.search).get('leaderboard') || '' : '') || 'https://crazycombat.onrender.com/api/ranking',
     width: 432, height: 768, runSeconds: null, bossSpawnSeconds: 50,
     player: { hp: 3, maxHp: 3, radius: 10, speed: 335, hitInvincible: 1, shieldSeconds: 3, shieldCooldown: 20, maxPower: 5 },
+    // The first weapon level needs two clean hits on a stage-one scout. Higher
+    // levels add spread and controlled damage instead of making early enemies
+    // disappear instantly.
     weapons: [
-      { count: 1, interval: .25, damage: 10, spread: 0 },
-      { count: 2, interval: .25, damage: 10, spread: 0 },
-      { count: 3, interval: .22, damage: 12, spread: .075 },
+      { count: 1, interval: .25, damage: 9, spread: 0 },
+      { count: 2, interval: .25, damage: 9, spread: 0 },
+      { count: 3, interval: .22, damage: 11, spread: .075 },
       { count: 4, interval: .22, damage: 12, spread: .105 },
-      { count: 5, interval: .20, damage: 15, spread: .12 }
+      { count: 5, interval: .20, damage: 14, spread: .12 }
     ],
     enemies: {
       scout: { hp: 10, speed: 3, score: 100, radius: 16, drop: .35 },
@@ -347,7 +350,7 @@
     // A visible, smooth ramp: every stage is harder, while the late campaign
     // remains challenging without making the first few stages spike sharply.
     const ramp = Math.pow(progress, .72);
-    return { stage: s, ramp, enemy: 1 + ramp * 2.6, boss: 1 + ramp * 4.8,
+    return { stage: s, ramp, enemy: 1.15 + ramp * 3.25, boss: 1 + ramp * 4.8,
       speed: 1 + ramp * .85, spawn: 1 + ramp * .75, score: 1 + ramp * 2.4,
       attack: 1 + ramp * 1.25, attackRange: 1 + ramp * .75,
       projectileSpeed: 1 + ramp * 1.05, projectileRadius: 1 + ramp * .30 };
@@ -800,7 +803,13 @@
       c.fillStyle=accent;c.fillRect(side*offset-side*4,y,side*8,4);c.fillStyle=dark;c.fillRect(side*offset-side*2,y+1,side*4,2);
     }
     c.restore();
-    if(heavy&&e.hp<e.maxHp){c.fillStyle='#452c3d';c.fillRect(e.x-24,e.y-40,48,3);c.fillStyle='#ff8793';c.fillRect(e.x-24,e.y-40,48*e.hp/e.maxHp,3);}
+    // Every hostile unit exposes its current armor so players can read the
+    // effect of stage scaling and choose targets before committing a volley.
+    const radius=Number(e.r)||16,ratio=Math.max(0,Math.min(1,(Number(e.hp)||0)/(Number(e.maxHp)||1))),barWidth=heavy?62:Math.max(32,Math.min(48,radius*2.25)),barHeight=heavy?5:4,barY=e.y-radius-10;
+    c.fillStyle='#07131dcc';c.fillRect(e.x-barWidth/2-1,barY-1,barWidth+2,barHeight+2);
+    c.fillStyle='#294352';c.fillRect(e.x-barWidth/2,barY,barWidth,barHeight);
+    c.fillStyle=ratio>.5?accent:ratio>.25?'#ffd077':'#ff7086';c.fillRect(e.x-barWidth/2,barY,barWidth*ratio,barHeight);
+    c.strokeStyle='#8fb4bd88';c.lineWidth=1;c.strokeRect(e.x-barWidth/2-1,barY-1,barWidth+2,barHeight+2);
   }
   function boss(c,b,time=0) {
     const style=b.style||{};c.save();c.translate(b.x,b.y);c.rotate(style.tilt||0);c.scale(style.width||1,style.height||1);
