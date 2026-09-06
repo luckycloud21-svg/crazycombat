@@ -169,6 +169,7 @@ function entry(row) {
 
 app.get('/api/ranking', async (req, res) => {
   try {
+    const user = authenticatedUser(req);
     const result = await pool.query(`
       SELECT
         (ROW_NUMBER() OVER (
@@ -190,7 +191,20 @@ app.get('/api/ranking', async (req, res) => {
       LIMIT 100
     `);
 
-    res.json(result.rows.map(row => ({ rank: Number(row.rank), ...entry(row) })));
+    const rows = result.rows.map(row => ({ rank: Number(row.rank), ...entry(row) }));
+    // Return the authenticated player's own total even when they are outside
+    // the public top-100 list, so the game can restore PERSONAL BEST reliably.
+    if (user) {
+      const mine = await pool.query(`
+        SELECT player_id, name, pilot_name, itch_user_id, itch_username,
+               cumulative_score::float8 AS cumulative_score,
+               total_score::float8 AS total_score, stage, runs, cleared_runs, updated_at
+        FROM ranking_players
+        WHERE player_id = $1
+      `, [`itch-${user.id}`]);
+      return res.json({ rows, me: mine.rowCount ? entry(mine.rows[0]) : null });
+    }
+    res.json(rows);
   } catch (error) {
     console.error('GET /api/ranking failed:', error);
     res.status(500).json({ error: 'Failed to load ranking' });

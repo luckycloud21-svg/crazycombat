@@ -1267,6 +1267,7 @@
     }catch(_){return null;}
   }
   let itchAuth=loadAuthSession(),oauthWindow=null,oauthState='';
+  let globalPersonal={userId:String(itchAuth?.user?.id||''),score:0,cumulativeScore:0,stage:1};
   const keys=new Set(),P=()=>store.profile;
   function t(key,args={}){let text=CC.I18N[P().settings.language][key]||CC.I18N.en[key]||key;for(const [k,v]of Object.entries(args))text=text.replaceAll(`{${k}}`,String(v));return text;}
   function authOrigin(){try{return new URL(C.leaderboardEndpoint).origin;}catch(_){return '';}}
@@ -1280,6 +1281,24 @@
       }else{persistent?.removeItem(AUTH_SESSION_KEY);legacy?.removeItem(AUTH_SESSION_KEY);}
     }catch(_){}
   }
+  function resetGlobalPersonal(){globalPersonal={userId:String(itchAuth?.user?.id||''),score:0,cumulativeScore:0,stage:1};refreshGlobalPersonalUI();}
+  function rememberGlobalPersonal(entry){
+    const userId=String(itchAuth?.user?.id||'');if(!userId)return;
+    if(globalPersonal.userId!==userId)globalPersonal={userId,score:0,cumulativeScore:0,stage:1};
+    const score=Number(entry?.totalScore??entry?.total_score??entry?.score);
+    if(!Number.isFinite(score)||score<0)return;
+    if(score>=globalPersonal.score){
+      globalPersonal.score=K.int(score,C.score.totalCap);
+      globalPersonal.cumulativeScore=K.int(Number(entry?.cumulativeScore??entry?.cumulative_score??0),C.score.totalCap);
+      globalPersonal.stage=K.clamp(K.int(Number(entry?.stage),C.totalStages)||1,1,C.totalStages);
+    }
+    refreshGlobalPersonalUI();
+  }
+  function personalGlobalScore(){
+    const userId=String(itchAuth?.user?.id||'');
+    return userId&&globalPersonal.userId===userId&&globalPersonal.score>0?globalPersonal.score:Math.max(Number(P().campaignScore)||0,0);
+  }
+  function refreshGlobalPersonalUI(){const best=$('aside-best');if(best)best.textContent=number(personalGlobalScore());}
   function itchAccountHTML(){
     if(itchAuth?.user){
       const user=itchAuth.user,display=String(user.username||user.displayName||user.id);
@@ -1377,7 +1396,7 @@
      if(!oauthWindow)translatedToast('itchLoginFailed');
    }
    function disconnectItch(){
-     itchAuth=null;saveAuthSession();translatedToast('disconnectItch');
+     itchAuth=null;resetGlobalPersonal();saveAuthSession();translatedToast('disconnectItch');
      renderHeader();
      if(view==='settings')renderMenu();
      if(modalStack.length)renderModal();
@@ -1393,9 +1412,10 @@
        if(!response.ok)throw new Error(`HTTP ${response.status}`);
        const result=await response.json();
        if(!result.ok||typeof result.sessionToken!=='string'||!result.user?.id)throw new Error('Invalid account response');
-       itchAuth={sessionToken:result.sessionToken,expiresAt:Date.now()+Math.max(60,Number(result.expiresIn)||30*24*60*60)*1000,user:result.user};saveAuthSession();renderHeader();translatedToast('itchConnectedAs',{name:result.user.username||result.user.id});
+       itchAuth={sessionToken:result.sessionToken,expiresAt:Date.now()+Math.max(60,Number(result.expiresIn)||30*24*60*60)*1000,user:result.user};resetGlobalPersonal();saveAuthSession();renderHeader();translatedToast('itchConnectedAs',{name:result.user.username||result.user.id});
        if(view==='settings')renderMenu();
        if(modalStack.length)renderModal();
+       loadGlobalLeaderboard();
      }catch(_){translatedToast('itchLoginFailed');}
    }
    async function loadGlobalLeaderboard(){
@@ -1403,13 +1423,19 @@
      if(globalBoard.status==='loading')return;
      globalBoard.status='loading';globalBoard.error='';if(view==='records')renderMenu();
      try{
-       const response=await fetch(C.leaderboardEndpoint,{headers:{Accept:'application/json'},cache:'no-store'});
+       const headers={Accept:'application/json'};
+       if(itchAuth?.sessionToken)headers.Authorization=`Bearer ${itchAuth.sessionToken}`;
+       const response=await fetch(C.leaderboardEndpoint,{headers,cache:'no-store'});
        if(!response.ok)throw new Error(`HTTP ${response.status}`);
-       const raw=await response.json(),rows=Array.isArray(raw)?raw:(raw.entries||raw.rows||raw.data||[]);
+       const raw=await response.json(),rows=Array.isArray(raw)?raw:(raw.entries||raw.rows||raw.data||[]),mine=!Array.isArray(raw)?raw.me||raw.current||raw.playerScore:null;
        if(!Array.isArray(rows))throw new Error('Invalid leaderboard response');
-       globalBoard={status:'ready',rows:rows.filter(r=>r&&Number.isFinite(Number(r.totalScore??r.total_score??r.score))).map(r=>({name:String(r.name||r.player||'PILOT').slice(0,32),itchUsername:String(r.itchUsername??r.itch_username??'').slice(0,32),score:K.int(Number(r.totalScore??r.total_score??r.score),C.score.totalCap),cumulativeScore:K.int(Number(r.cumulativeScore??r.cumulative_score??r.totalScore??r.score),C.score.totalCap),stage:K.clamp(K.int(Number(r.stage),C.totalStages)||1,1,C.totalStages),rank:K.int(Number(r.rank),100000)})).sort((a,b)=>b.score-a.score),error:''};
+       const mapped=rows.filter(r=>r&&Number.isFinite(Number(r.totalScore??r.total_score??r.score))).map(r=>({name:String(r.name||r.player||'PILOT').slice(0,32),itchUserId:String(r.itchUserId??r.itch_user_id??'').slice(0,64),itchUsername:String(r.itchUsername??r.itch_username??'').slice(0,32),score:K.int(Number(r.totalScore??r.total_score??r.score),C.score.totalCap),cumulativeScore:K.int(Number(r.cumulativeScore??r.cumulative_score??r.totalScore??r.score),C.score.totalCap),stage:K.clamp(K.int(Number(r.stage),C.totalStages)||1,1,C.totalStages),rank:K.int(Number(r.rank),100000)})).sort((a,b)=>b.score-a.score);
+       globalBoard={status:'ready',rows:mapped,error:''};
+       if(mine)rememberGlobalPersonal(mine);
+       else if(itchAuth?.user?.id)rememberGlobalPersonal(mapped.find(r=>r.itchUserId===String(itchAuth.user.id)));
      }catch(error){globalBoard={status:'error',rows:[],error:error.message||'Unable to load scores'};}
      if(view==='records')renderMenu();
+     refreshGlobalPersonalUI();
    }
    async function submitGlobalScore(result){
      if(!C.leaderboardEndpoint||!itchAuth?.sessionToken||!result||!Number.isFinite(Number(result.score))||Number(result.score)<0){if(C.leaderboardEndpoint&&!itchAuth?.sessionToken)translatedToast('itchLoginRequired');return;}
@@ -1418,8 +1444,9 @@
          runId:result.runId,pilotName:P().pilotName||'PILOT',name:P().pilotName||'PILOT',runScore:result.score,score:result.score,
          stage:result.stage||1,cleared:!!result.cleared,endedAt:result.endedAt
        })});
-       if(response.status===401){itchAuth=null;saveAuthSession();renderHeader();if(view==='settings')renderModal();translatedToast('itchLoginRequired');return;}
+       if(response.status===401){itchAuth=null;resetGlobalPersonal();saveAuthSession();renderHeader();if(view==='settings')renderModal();translatedToast('itchLoginRequired');return;}
        if(!response.ok)throw new Error(`HTTP ${response.status}`);
+       const payload=await response.json().catch(()=>null);if(payload?.entry)rememberGlobalPersonal(payload.entry);
        globalBoard.status='idle';
        if(view==='records')renderMenu();
      }catch(_){/* Local records remain available when the service is offline. */}
@@ -1449,7 +1476,7 @@
   function renderFlightPanels(){
     const s=C.ships.find(x=>x.id===P().equippedPlaneId);
      $('left-flight-panel').innerHTML=`<div class="aside-kicker"><i></i>${t('badge')}</div><h2>CRAZY<br>COMBAT</h2><p>${t('intro')}</p><div class="aside-divider"></div><div class="aside-control"><span>${t('move')}</span><div><b class="keycap">W</b><b class="keycap">A</b><b class="keycap">S</b><b class="keycap">D</b></div><div><b class="keycap">↑</b><b class="keycap">←</b><b class="keycap">↓</b><b class="keycap">→</b></div></div><div class="aside-control"><span>${t('shield')}</span><div><b class="keycap">SPACE</b></div></div><div class="aside-control"><span>${t('specialMissile')}</span><div><b class="keycap">Q</b></div><p class="aside-tip">${t('specialHelp')}</p></div><div class="aside-control"><span>${t('pause')}</span><div><b class="keycap">ESC</b></div></div><p class="aside-tip">${t('drag')}</p><button class="text-button" data-action="help">${t('help')} ↗</button>`;
-     $('right-flight-panel').innerHTML=`<div class="eyebrow">${s.code} / ${t('equipped')}</div><canvas class="aside-ship" data-ship="${s.id}" aria-hidden="true"></canvas><div class="section-label"><h2>${s.name}</h2><small>✦ ${number(P().coins)}</small></div><div class="aside-divider"></div><div class="aside-stat"><span>${t('stage')}</span><strong id="aside-stage">${String(P().currentStage).padStart(3,'0')} / 1000</strong></div><div class="aside-stat"><span>${t('best')}</span><strong>${number(P().bestScore)}</strong></div><div class="aside-stat"><span>${t('kills')}</span><strong id="aside-kills">0</strong></div><div class="aside-stat"><span>${t('maxCombo')}</span><strong id="aside-combo">0</strong></div><div class="aside-divider"></div><span class="micro">${t('threat')}</span><div id="threat-bars" class="threat-bars"><i></i><i></i><i></i><i></i><i></i><i></i></div><p class="aside-tip" style="margin-top:16px">${t('countdownBoss')}<br>${t('endpoint')}</p>`;
+     $('right-flight-panel').innerHTML=`<div class="eyebrow">${s.code} / ${t('equipped')}</div><canvas class="aside-ship" data-ship="${s.id}" aria-hidden="true"></canvas><div class="section-label"><h2>${s.name}</h2><small>✦ ${number(P().coins)}</small></div><div class="aside-divider"></div><div class="aside-stat"><span>${t('stage')}</span><strong id="aside-stage">${String(P().currentStage).padStart(3,'0')} / 1000</strong></div><div class="aside-stat"><span>${t('best')}</span><strong id="aside-best">${number(personalGlobalScore())}</strong></div><div class="aside-stat"><span>${t('kills')}</span><strong id="aside-kills">0</strong></div><div class="aside-stat"><span>${t('maxCombo')}</span><strong id="aside-combo">0</strong></div><div class="aside-divider"></div><span class="micro">${t('threat')}</span><div id="threat-bars" class="threat-bars"><i></i><i></i><i></i><i></i><i></i><i></i></div><p class="aside-tip" style="margin-top:16px">${t('countdownBoss')}<br>${t('endpoint')}</p>`;
     bindPreviews();renderHeader();
   }
   function startNewCampaign(){
@@ -1711,6 +1738,7 @@
     requestAnimationFrame(loop);
   }
   syncSettings();store.persist();renderMenu();$('boot').classList.add('hidden');resize();requestAnimationFrame(loop);
+  if(itchAuth?.sessionToken)loadGlobalLeaderboard();
   if(store.recovered)translatedToast('saveRecovered',{},8000);else if(!store.persistent)translatedToast('saveUnavailable',{},10000);
   // Test hooks exist only on localhost AND with an explicit qa=1 query. They are
   // absent on itch.io and from the standalone file origin. No gameplay cheats in UI.
