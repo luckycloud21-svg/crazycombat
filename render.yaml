@@ -12,7 +12,7 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: CORS_ORIGINS
-        sync: false
+        value: https://luckycloud21.itch.io,https://html-classic.itch.zone,https://html.itch.zone
       - key: ITCH_CLIENT_ID
         sync: false
       - key: ITCH_OAUTH_REDIRECT_URI

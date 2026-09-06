@@ -27,11 +27,29 @@ const allowedOrigins = (process.env.CORS_ORIGINS || '')
   .map(value => value.trim())
   .filter(Boolean);
 
+function isAllowedOrigin(origin) {
+  if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) return true;
+  try {
+    const url = new URL(origin);
+    const host = url.hostname.toLowerCase();
+    // itch.io serves HTML5 uploads from *.itch.zone, commonly
+    // html-classic.itch.zone. The project page itself is usually *.itch.io.
+    const isItchHost = host === 'itch.io'
+      || host.endsWith('.itch.io')
+      || host === 'itch.zone'
+      || host.endsWith('.itch.zone');
+    return url.protocol === 'https:' && isItchHost;
+  } catch (_) {
+    return false;
+  }
+}
+
 app.use(cors({
   origin(origin, callback) {
     // No Origin header is common for health checks and server-to-server calls.
-    // An empty CORS_ORIGINS value allows all origins for first-time testing.
-    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+    // Explicit CORS_ORIGINS entries remain supported; itch.io's official HTTPS
+    // page/CDN hosts are also accepted because the game runs inside an iframe.
+    if (isAllowedOrigin(origin)) {
       return callback(null, true);
     }
     return callback(new Error('CORS origin is not allowed'));
@@ -262,6 +280,13 @@ app.post('/api/ranking', async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+app.use((error, req, res, next) => {
+  if (error?.message === 'CORS origin is not allowed') {
+    return res.status(403).json({ error: 'CORS origin is not allowed' });
+  }
+  return next(error);
 });
 
 async function start() {

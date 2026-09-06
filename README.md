@@ -29,8 +29,7 @@ The `ranking-server` directory contains an Express + PostgreSQL API. The root
 3. Open your existing Render Postgres database and copy its Internal Database URL.
 4. Set the Web Service environment variables:
    - `DATABASE_URL`: the copied Internal Database URL
-   - `CORS_ORIGINS`: the HTTPS origin where the game is hosted, for example
-     `https://YOUR-GITHUB-NAME.github.io`
+   - `CORS_ORIGINS`: `https://luckycloud21.itch.io,https://html-classic.itch.zone,https://html.itch.zone`
    - `AUTH_SECRET`: a long random secret used to sign game login sessions
    - `ITCH_CLIENT_ID`: the Client ID from your itch.io OAuth application
    - `ITCH_OAUTH_REDIRECT_URI`: exactly
