@@ -148,16 +148,18 @@ app.post('/auth/itch/exchange', async (req, res) => {
 
 function entry(row) {
   const totalScore = Number(row.total_score);
+  const cumulativeScore = Number(row.cumulative_score ?? 0);
   return {
     playerId: row.player_id,
     name: row.pilot_name || row.name,
     pilotName: row.pilot_name || row.name,
     itchUserId: row.itch_user_id || null,
     itchUsername: row.itch_username || null,
-    // score remains the public compatibility field; it means accumulated
-    // ranking points (stage score multiplied by stage number).
+    // score remains the public compatibility field; it means
+    // highest stage multiplied by the account's cumulative score.
     score: totalScore,
     totalScore,
+    cumulativeScore,
     stage: Number(row.stage),
     runs: Number(row.runs),
     clearedRuns: Number(row.cleared_runs),
@@ -177,6 +179,7 @@ app.get('/api/ranking', async (req, res) => {
         pilot_name,
         itch_user_id,
         itch_username,
+        cumulative_score::float8 AS cumulative_score,
         total_score::float8 AS total_score,
         stage,
         runs,
@@ -227,10 +230,6 @@ app.post('/api/ranking', async (req, res) => {
     return res.status(400).json({ error: 'Invalid score or stage' });
   }
 
-  // Later stages contribute more to the global ranking:
-  // ranking points = this stage's score × stage number.
-  const rankingScore = runScore * stage;
-
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -245,7 +244,7 @@ app.post('/api/ranking', async (req, res) => {
 
     if (!inserted.rowCount) {
       const existing = await client.query(
-        `SELECT player_id, name, pilot_name, itch_user_id, itch_username, total_score::float8 AS total_score, stage, runs, cleared_runs, updated_at
+        `SELECT player_id, name, pilot_name, itch_user_id, itch_username, cumulative_score::float8 AS cumulative_score, total_score::float8 AS total_score, stage, runs, cleared_runs, updated_at
          FROM ranking_players
          WHERE player_id = (SELECT player_id FROM ranking_runs WHERE run_id = $1)`,
         [runId]
@@ -260,20 +259,22 @@ app.post('/api/ranking', async (req, res) => {
 
     const result = await client.query(
       `INSERT INTO ranking_players
-         (player_id, name, pilot_name, itch_user_id, itch_username, total_score, stage, runs, cleared_runs)
-       VALUES ($1, $2, $2, $3, $4, $5, $6, 1, $7)
+         (player_id, name, pilot_name, itch_user_id, itch_username, cumulative_score, total_score, stage, runs, cleared_runs)
+       VALUES ($1, $2, $2, $3, $4, $5, $5::bigint * $6::bigint, $6, 1, $7)
        ON CONFLICT (player_id) DO UPDATE SET
          name = EXCLUDED.name,
          pilot_name = EXCLUDED.pilot_name,
          itch_user_id = EXCLUDED.itch_user_id,
          itch_username = EXCLUDED.itch_username,
-         total_score = ranking_players.total_score + EXCLUDED.total_score,
          stage = GREATEST(ranking_players.stage, EXCLUDED.stage),
+         cumulative_score = ranking_players.cumulative_score + EXCLUDED.cumulative_score,
+         total_score = GREATEST(ranking_players.stage, EXCLUDED.stage)
+           * (ranking_players.cumulative_score + EXCLUDED.cumulative_score),
          runs = ranking_players.runs + 1,
          cleared_runs = ranking_players.cleared_runs + EXCLUDED.cleared_runs,
          updated_at = NOW()
-       RETURNING player_id, name, pilot_name, itch_user_id, itch_username, total_score::float8 AS total_score, stage, runs, cleared_runs, updated_at`,
-      [playerId, name, user.id, user.username, rankingScore, stage, cleared ? 1 : 0]
+       RETURNING player_id, name, pilot_name, itch_user_id, itch_username, cumulative_score::float8 AS cumulative_score, total_score::float8 AS total_score, stage, runs, cleared_runs, updated_at`,
+      [playerId, name, user.id, user.username, runScore, stage, cleared ? 1 : 0]
     );
 
     await client.query('COMMIT');
@@ -315,6 +316,7 @@ async function start() {
       pilot_name VARCHAR(24),
       itch_user_id VARCHAR(64),
       itch_username VARCHAR(64),
+      cumulative_score BIGINT NOT NULL DEFAULT 0 CHECK (cumulative_score >= 0),
       total_score BIGINT NOT NULL DEFAULT 0 CHECK (total_score >= 0),
       stage INTEGER NOT NULL CHECK (stage BETWEEN 1 AND 1000),
       runs INTEGER NOT NULL DEFAULT 0 CHECK (runs >= 0),
@@ -328,6 +330,7 @@ async function start() {
   await pool.query(`ALTER TABLE ranking_players ADD COLUMN IF NOT EXISTS pilot_name VARCHAR(24)`);
   await pool.query(`ALTER TABLE ranking_players ADD COLUMN IF NOT EXISTS itch_user_id VARCHAR(64)`);
   await pool.query(`ALTER TABLE ranking_players ADD COLUMN IF NOT EXISTS itch_username VARCHAR(64)`);
+  await pool.query(`ALTER TABLE ranking_players ADD COLUMN IF NOT EXISTS cumulative_score BIGINT NOT NULL DEFAULT 0`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ranking_runs (
@@ -355,12 +358,13 @@ async function start() {
   if (!migration.rowCount) {
     await pool.query(`
       INSERT INTO ranking_players
-        (player_id, name, pilot_name, total_score, stage, runs, cleared_runs, created_at, updated_at)
+        (player_id, name, pilot_name, cumulative_score, total_score, stage, runs, cleared_runs, created_at, updated_at)
       SELECT
         'legacy-' || md5(lower(trim(name))),
         MAX(name),
         MAX(name),
-        SUM(score::bigint * stage::bigint)::bigint,
+        SUM(score::bigint)::bigint,
+        (SUM(score::bigint) * MAX(stage::bigint))::bigint,
         MAX(stage),
         COUNT(*)::int,
         SUM(CASE WHEN cleared THEN 1 ELSE 0 END)::int,
@@ -411,6 +415,48 @@ async function start() {
        ON CONFLICT (key) DO NOTHING`
     );
     console.log('Rebuilt ranking totals with stage-weighted scores.');
+  }
+
+  // One-time migration to the current formula:
+  // total score = highest stage × cumulative account score.
+  const cumulativeStageMigration = await pool.query(
+    `SELECT key FROM ranking_meta WHERE key = 'stage-multiplied-cumulative-v3'`
+  );
+  if (!cumulativeStageMigration.rowCount) {
+    await pool.query(`
+      UPDATE ranking_players AS players
+      SET
+        stage = GREATEST(players.stage, runs.stage),
+        cumulative_score = runs.cumulative_score,
+        total_score = (GREATEST(players.stage, runs.stage)::bigint * runs.cumulative_score)::bigint
+      FROM (
+        SELECT player_id, SUM(run_score::bigint)::bigint AS cumulative_score, MAX(stage)::int AS stage
+        FROM ranking_runs
+        GROUP BY player_id
+      ) AS runs
+      WHERE players.player_id = runs.player_id
+    `);
+    await pool.query(`
+      UPDATE ranking_players AS players
+      SET
+        stage = GREATEST(players.stage, legacy.stage),
+        cumulative_score = legacy.cumulative_score,
+        total_score = (GREATEST(players.stage, legacy.stage)::bigint * legacy.cumulative_score)::bigint
+      FROM (
+        SELECT
+          'legacy-' || md5(lower(trim(name))) AS player_id,
+          SUM(score::bigint)::bigint AS cumulative_score,
+          MAX(stage)::int AS stage
+        FROM scores
+        GROUP BY lower(trim(name))
+      ) AS legacy
+      WHERE players.player_id = legacy.player_id
+    `);
+    await pool.query(
+      `INSERT INTO ranking_meta (key) VALUES ('stage-multiplied-cumulative-v3')
+       ON CONFLICT (key) DO NOTHING`
+    );
+    console.log('Rebuilt ranking totals as stage multiplied by cumulative score.');
   }
 
   app.listen(port, '0.0.0.0', () => {

@@ -42,9 +42,9 @@ The `ranking-server` directory contains an Express + PostgreSQL API. The root
    `https://YOUR-SERVICE.onrender.com/api/ranking`
 
 The API provides `GET /api/ranking`, `POST /api/ranking`, and the itch.io OAuth
-routes. Each run contributes `stage score x stage number` to the authenticated
-itch.io user's cumulative ranking total; the public ranking is sorted by that
-weighted total and includes the public
+routes. The public total is calculated as `highest stage x cumulative score`
+for each authenticated itch.io account; the public ranking is sorted by that
+total and includes the public
 pilot name plus itch.io username. Scores are validated for stages 1–1000 and
 stored in PostgreSQL. The server also deduplicates retries by `runId`.
 
