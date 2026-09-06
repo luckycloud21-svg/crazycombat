@@ -42,6 +42,8 @@
   <style id="leaderboard-input-ui">
     .settings-input{width:min(56%,260px);min-height:40px;padding:8px 10px;border:1px solid #3a5263;border-radius:7px;background:#142638;color:#c6d7df;font-size:11px}
     .settings-input::placeholder{color:#71899b}
+    .account-panel{margin-top:19px;padding:16px 17px;border:1px solid #385363;border-radius:10px;background:#112333}.account-panel h3{margin:0 0 7px;font-size:10px;letter-spacing:1.5px;color:#a9d9d7}.account-panel p{margin:0;color:#91aabd;font-size:10px;line-height:1.6}.account-panel strong{color:#f1d298}.account-panel .account-id{display:block;margin-top:4px;font-family:Consolas,monospace;font-size:9px;color:#7e9cac}.account-panel button{width:100%;margin-top:12px;min-height:40px;font-size:10px}
+    .global-name small{display:block;margin-top:3px;font-size:9px;font-weight:400;color:#84a8b7}
   </style>
 <style>
   .stat-bars i{background:#2c4555}
@@ -96,7 +98,7 @@
         <aside id="right-flight-panel" class="flight-aside"></aside>
       </div>
     </section>
-    <footer id="footer" class="footer"><span id="footer-edition">HTML5 EDITION · v1.5.0</span><span id="footer-note">NO ADS. NO PAID STAT BOOSTS.</span><button data-action="privacy" class="text-button" id="footer-privacy">DATA & CREDITS</button></footer>
+    <footer id="footer" class="footer"><span id="footer-edition">HTML5 EDITION · v1.7.0</span><span id="footer-note">NO ADS. NO PAID STAT BOOSTS.</span><button data-action="privacy" class="text-button" id="footer-privacy">DATA & CREDITS</button></footer>
   </div>
   <div id="modal-root" class="modal-root hidden"></div>
   <div id="toast" class="toast hidden" role="status"></div>
@@ -110,9 +112,9 @@
   'use strict';
   const CC = root.CC = root.CC || {};
   CC.CONFIG = {
-    version: '1.5.0', configVersion: 'html5-campaign-1.5.0',
+    version: '1.7.0', configVersion: 'html5-campaign-1.7.0',
     totalStages: 1000,
-    // HTTPS JSON endpoint: GET returns an array (or {entries:[]}); POST accepts score payloads.
+    // HTTPS JSON endpoint: GET returns cumulative player totals; POST adds one run score.
     // It can be supplied by the host page or with ?leaderboard=https%3A%2F%2F… .
     leaderboardEndpoint: root.CRAZY_COMBAT_LEADERBOARD_ENDPOINT || (root.location?.search ? new URLSearchParams(root.location.search).get('leaderboard') || '' : '') || 'https://crazycombat.onrender.com/api/ranking',
     width: 432, height: 768, runSeconds: null, bossSpawnSeconds: 50,
@@ -146,7 +148,7 @@
     ],
     boss: { hp: 1200, score: 3000, radius: 65, aimedWarning: .45, aimedSpacing: .18, sweepWarning: .6 },
     specialMissile: { maxKi: 100, damage: 360, blastRadius: 180, hitRadius: 30, speed: 360, chargePerSecond: 48 },
-    score: { survivalBonus: 1000, hpBonus: 300, cap: 999999, totalCap: 999999999, comboSeconds: 2 },
+    score: { survivalBonus: 1000, hpBonus: 300, cap: 999999, totalCap: 999999999999999, comboSeconds: 2 },
     ships: [
       // Stats are intentionally trade-offs rather than straight upgrades:
       // FALCON is the baseline, NOVA is fast but fragile, PHANTOM is strong but slow.
@@ -198,6 +200,12 @@
   function weighted(weights, random = Math.random) { let p = random() * weights.reduce((a,b) => a+b, 0); for (let i=0; i<weights.length; i++) { p -= weights[i]; if (p < 0) return i; } return weights.length - 1; }
   function dateKey(date = new Date()) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
   function multiplier(combo) { return combo >= 30 ? 2 : combo >= 20 ? 1.5 : combo >= 10 ? 1.2 : combo >= 5 ? 1.1 : 1; }
+  function makePlayerId() {
+    const uuid = root.crypto?.randomUUID?.();
+    if (uuid) return `cc-${uuid}`;
+    const seed = `${Date.now()}-${Math.random()}-${Math.random()}`;
+    return `cc-${hash(seed).toString(36)}-${hash(seed.split('').reverse().join('')).toString(36)}`;
+  }
   function shipStats(id) {
     const ship = C.ships.find(s => s.id === id), raw = ship?.stats || {};
     return {
@@ -207,9 +215,12 @@
     };
   }
   function stageDifficulty(stage = 1) {
-    const s = clamp(int(stage, C.totalStages), 1, C.totalStages), n = s - 1;
-    return { stage: s, enemy: 1 + Math.pow(n, .56) * .08, boss: 1 + Math.pow(n, .60) * .12,
-      speed: 1 + Math.min(.72, Math.log1p(n) * .052), spawn: 1 + Math.min(.62, Math.log1p(n) * .043), score: 1 + Math.log1p(n) * .11 };
+    const s = clamp(int(stage, C.totalStages), 1, C.totalStages), progress = (s - 1) / Math.max(1, C.totalStages - 1);
+    // A visible, smooth ramp: every stage is harder, while the late campaign
+    // remains challenging without making the first few stages spike sharply.
+    const ramp = Math.pow(progress, .72);
+    return { stage: s, ramp, enemy: 1 + ramp * 2.6, boss: 1 + ramp * 4.8,
+      speed: 1 + ramp * .85, spawn: 1 + ramp * .75, score: 1 + ramp * 2.4 };
   }
   function makeMissions(day) {
     const random = rng(hash(day));
@@ -220,15 +231,16 @@
     });
   }
   function defaults(language = 'en', day = dateKey()) {
-    return { schemaVersion: 2, bestScore: 0, overallScore: 0, currentStage: 1, pilotName: 'PILOT', coins: 0, ownedPlaneIds: ['falcon'], equippedPlaneId: 'falcon', tutorialCompleted: false,
+    return { schemaVersion: 3, playerId: makePlayerId(), bestScore: 0, overallScore: 0, currentStage: 1, pilotName: 'PILOT', coins: 0, ownedPlaneIds: ['falcon'], equippedPlaneId: 'falcon', tutorialCompleted: false,
       settings: { bgm: true, sfx: true, haptic: true, controlMode: 'relative', leftHanded: false, reducedMotion: false, language: language === 'ko' ? 'ko' : 'en' },
       dailyMission: { dateKey: day, missions: makeMissions(day) },
       records: [], processedRuns: [], totals: { runs: 0, kills: 0, bosses: 0, seconds: 0, score: 0, maxStage: 1 }, updatedAt: new Date().toISOString() };
   }
   function normalize(raw, language = 'en', day = dateKey()) {
     if (!isObj(raw)) throw new Error('SAVE-JSON-CORRUPT');
-    if (raw.schemaVersion !== undefined && raw.schemaVersion > 2) throw new Error('SAVE-VERSION-UNSUPPORTED');
+    if (raw.schemaVersion !== undefined && raw.schemaVersion > 3) throw new Error('SAVE-VERSION-UNSUPPORTED');
     const p = defaults(language, day);
+    if (typeof raw.playerId === 'string' && /^[A-Za-z0-9._:-]{8,80}$/.test(raw.playerId.trim())) p.playerId = raw.playerId.trim();
     p.bestScore = int(raw.bestScore ?? raw.highScore, C.score.cap);
     p.overallScore = int(raw.overallScore ?? raw.totalScore, C.score.totalCap);
     p.currentStage = clamp(int(raw.currentStage ?? raw.stage, C.totalStages) || 1, 1, C.totalStages);
@@ -361,7 +373,7 @@
       this.persist();
     }
   }
-  CC.Core = { clamp, int, clone, hash, rng, weighted, dateKey, multiplier, shipStats, stageDifficulty, makeMissions, defaults, normalize, ensureDay, finalScore, applyRun, claimMission, buyShip, Pool, Store };
+  CC.Core = { clamp, int, clone, hash, rng, weighted, dateKey, multiplier, makePlayerId, shipStats, stageDifficulty, makeMissions, defaults, normalize, ensureDay, finalScore, applyRun, claimMission, buyShip, Pool, Store };
   if (typeof module !== 'undefined' && module.exports) module.exports=CC.Core;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -370,7 +382,7 @@
 (function (root) {
   'use strict';
   const en = {
-     division:'ARCADE FLIGHT DIVISION', local:'LOCAL SAVE', memory:'SESSION ONLY', subtitle:'No clock. Make every stage count.',
+     division:'ARCADE FLIGHT DIVISION', local:'LOCAL PROFILE', memory:'SESSION ONLY', globalLinked:'GLOBAL LINKED', globalLinkRequired:'ITCH LOGIN NEEDED', subtitle:'No clock. Make every stage count.',
      intro:'Hold Q to charge KI, release it to fire a straight special missile, and destroy the boss.', launch:'LAUNCH MISSION', ready:'READY FOR TAKEOFF', mission:'DAILY MISSIONS', campaign:'1,000-STAGE CAMPAIGN', stage:'STAGE', stages:'STAGES', currentStage:'CURRENT STAGE', overallScore:'OVERALL SCORE', overallRank:'OVERALL RANK',
     localDate:'Resets at local midnight', claim:'CLAIM', claimed:'CLAIMED', reward:'REWARD', best:'PERSONAL BEST', bestNote:'Your next flight could be your best.',
     hangar:'HANGAR', records:'FLIGHT RECORDS', settings:'SETTINGS', equipped:'EQUIPPED', equip:'EQUIP SHIP', owned:'OWNED', unlock:'UNLOCK', locked:'LOCKED',
@@ -385,7 +397,7 @@
     firepower:'FIREPOWER', armor:'ARMOR', handling:'HANDLING', back:'BACK', coins:'COINS', wallet:'YOUR BALANCE',
     insufficient:'Earn {n} more coins to unlock this ship.', buyTitle:'Unlock {name}?', buyBody:'Spend {n} coins on this cosmetic ship. No real money is used.',
     confirmBuy:'UNLOCK & EQUIP', shipUnlocked:'{name} unlocked and equipped.', shipEquipped:'{name} equipped.',
-     recordsTitle:'Every flight leaves a mark.', recordsNote:'Your overall ranking across every stage, stored in this browser.', globalRanking:'GLOBAL SCORE RANKING', globalNote:'Scores from every player appear here when an online leaderboard is connected.', globalOffline:'ONLINE LEADERBOARD NOT CONNECTED', globalOfflineNote:'This standalone HTML build is ready for a leaderboard API. Local ranking remains available below.', globalLoading:'LOADING GLOBAL SCORES…', globalEmpty:'No global scores yet.', globalRetry:'REFRESH GLOBAL RANKING', player:'PLAYER',
+     recordsTitle:'Every flight leaves a mark.', recordsNote:'Your overall ranking across every stage, stored in this browser.', globalRanking:'GLOBAL SCORE RANKING', globalNote:'Cumulative scores by itch.io account. Connect itch.io to submit your score.', globalOffline:'ONLINE LEADERBOARD NOT CONNECTED', globalOfflineNote:'This standalone HTML build is ready for a leaderboard API. Local ranking remains available below.', globalLoading:'LOADING GLOBAL SCORES…', globalEmpty:'No global scores yet.', globalRetry:'REFRESH GLOBAL RANKING', player:'PLAYER',
     noRecords:'Your first sortie starts here.', noRecordsDesc:'Complete a mission to log your first score.', flights:'FLIGHTS', kills:'ENEMIES', bosses:'BOSSES',
      score:'SCORE', time:'ELAPSED', hull:'HULL', power:'POWER', shield:'SHIELD', readyShield:'READY', activeShield:'ACTIVE', autoFire:'AUTO FIRE', sector:'SECTOR', ki:'KI', specialReady:'RELEASE Q TO FIRE', charging:'HOLD Q TO CHARGE', specialMissile:'SPECIAL MISSILE', specialHelp:'HOLD Q · RELEASE TO FIRE',
     pause:'PAUSE', paused:'FLIGHT PAUSED', pauseDesc:'Take a breath. Your mission will wait.', resume:'RESUME FLIGHT', restart:'RESTART', returnLobby:'RETURN TO BASE',
@@ -395,7 +407,7 @@
     survival:'SURVIVAL BONUS', hullBonus:'HULL BONUS', combatScore:'COMBAT', starScore:'STARS', complete:'MISSION COMPLETE', lost:'SIGNAL LOST',
      completeSub:'Boss down. The next stage is unlocked.', lostSub:'Regroup. Reload. Go again.', newBest:'NEW PERSONAL BEST', finalScore:'FINAL SCORE',
     maxCombo:'MAX COMBO', earned:'COINS EARNED', survived:'FLIGHT TIME', defeated:'DESTROYED', escaped:'NOT DESTROYED', retry:'FLY AGAIN',
-     coinsSaved:'Coins already added to your balance.', noAds:'No ads. No paid stat boosts.', localOnly:'Saved on this browser only.', rankingLocal:'LOCAL OVERALL RANKING', rankRuns:'Ranked by stage score across all of your runs.',
+     coinsSaved:'Coins already added to your balance.', noAds:'No ads. No paid stat boosts.', localOnly:'Settings and offline records stay on this browser.', rankingLocal:'LOCAL OVERALL RANKING', rankRuns:'Ranked by stage score across all of your runs.',
     help:'FLIGHT MANUAL', controls:'CONTROLS', move:'MOVE', keyboard:'Arrow keys / WASD', drag:'Drag anywhere in the playfield',
     shieldHelp:'Space / Shift or the shield button', pauseHelp:'Escape / P', focusHelp:'Click or tap the game once to give it keyboard focus.',
      rules:'MISSION BRIEFING', rule1:'There is no time limit. Defeat the boss to clear the stage.',
@@ -407,7 +419,7 @@
     t1:'Move your ship', t1b:'Drag the playfield or use Arrow keys / WASD.', t2:'Let it fire', t2b:'Line up with the target. Your weapons fire automatically.',
     t3:'Raise your shield', t3b:'Press Space or tap SHIELD for 3 seconds of protection.', training:'FLIGHT TRAINING', skip:'SKIP TRAINING', trainingDone:'TRAINING COMPLETE',
     trainingNote:'Practice only. No scores or coins are saved.', launchIn:'LAUNCH IN', resumeIn:'RESUMING',
-    settingsTitle:'Tune your cockpit.', music:'Music', sound:'Sound effects', vibration:'Vibration (supported devices)', reduced:'Reduced effects',
+    settingsTitle:'Tune your cockpit.', music:'Music', sound:'Sound effects', vibration:'Vibration (supported devices)', reduced:'Reduced effects', itchAccount:'ITCH.IO ACCOUNT', connectItch:'CONNECT ITCH.IO', disconnectItch:'DISCONNECT', itchNotConnected:'Connect your itch.io account to submit global scores.', itchConnected:'ITCH.IO CONNECTED', itchConnectedAs:'Signed in as @{name}', itchId:'ITCH.IO ID', itchLoginFailed:'ITCH.IO account connection failed.', itchLoginRequired:'Connect itch.io before your next flight to submit global scores.',
     leftHanded:'Left-handed shield', controlMode:'Drag control', relative:'Relative movement', absolute:'Follow touch position', language:'Language',
     on:'ON', off:'OFF', replayTutorial:'REPLAY TRAINING', privacy:'DATA & CREDITS', exportSave:'EXPORT SAVE', importSave:'IMPORT SAVE', reset:'RESET LOCAL DATA',
     resetTitle:'Reset this browser’s progress?', resetBody:'All coins, ships, missions, settings, and local records will be erased. Export a save first to keep a backup.',
@@ -420,7 +432,7 @@
     fullscreen:'FULLSCREEN', fullscreenUnavailable:'Fullscreen is unavailable here. Use the host’s fullscreen button.', mute:'TOGGLE SOUND',
     saveRecovered:'A damaged save was recovered. Check your progress and keep an exported backup.', saveUnavailable:'Browser storage is unavailable. Progress lasts only for this session; export a save to keep it.',
     lowEffects:'Reduced effects enabled for smoother play.', close:'CLOSE', rotate:'Rotate for takeoff.', rotateDesc:'This flight uses a portrait playfield. Turn your phone upright to continue.',
-     version:'HTML5 EDITION · v1.5.0', threat:'THREAT LEVEL', countdownBoss:'BOSS AT 00:50', endpoint:'DEFEAT THE BOSS',
+     version:'HTML5 EDITION · v1.7.0', threat:'THREAT LEVEL', countdownBoss:'BOSS AT 00:50', endpoint:'DEFEAT THE BOSS',
     supply:'SUPPLY INBOUND', hpFull:'FULL HULL · +2', powerFull:'MAX POWER · +4', magnet:'MAGNET', secured:'SECTOR SECURED',
     play_1:'Complete 1 flight', kill_50:'Destroy 50 enemies', kill_100:'Destroy 100 enemies', combo_15:'Reach a 15-kill combo',
     power_5:'Reach POWER level 5', survive_60:'Survive a full 60 seconds', boss_kill:'Destroy the boss', shield_2:'Use 2 shields in one flight', coin_40:'Collect 40 coins in one flight',
@@ -444,7 +456,7 @@
     firepower:'공격력', armor:'방어력', handling:'기동력', back:'뒤로', coins:'코인', wallet:'보유 코인',
     insufficient:'해금하려면 코인 {n}개가 더 필요해요.', buyTitle:'{name} 기체를 해금할까요?', buyBody:'게임 코인 {n}개로 외형 기체를 해금해요. 실제 돈은 사용하지 않아요.',
     confirmBuy:'해금하고 장착', shipUnlocked:'{name} 기체를 해금하고 장착했어요.', shipEquipped:'{name} 기체를 장착했어요.',
-     recordsTitle:'모든 비행에는 기록이 남아요.', recordsNote:'모든 스테이지의 전투 기록을 점수순으로 보여줘요.', globalRanking:'글로벌 점수 랭킹', globalNote:'온라인 랭킹 서버가 연결되면 모든 플레이어의 점수가 표시돼요.', globalOffline:'온라인 랭킹 서버 미연결', globalOfflineNote:'이 단일 HTML 버전은 랭킹 API 연동을 지원해요. 아래에서 로컬 랭킹을 확인할 수 있어요.', globalLoading:'글로벌 점수 불러오는 중…', globalEmpty:'아직 글로벌 점수가 없어요.', globalRetry:'글로벌 랭킹 새로고침', player:'플레이어',
+     recordsTitle:'모든 비행에는 기록이 남아요.', recordsNote:'모든 스테이지의 전투 기록을 점수순으로 보여줘요.', globalRanking:'글로벌 점수 랭킹', globalNote:'itch.io 계정별 누적 점수 랭킹이에요. 점수를 저장하려면 itch.io를 연결하세요.', globalOffline:'온라인 랭킹 서버 미연결', globalOfflineNote:'이 단일 HTML 버전은 랭킹 API 연동을 지원해요. 아래에서 로컬 랭킹을 확인할 수 있어요.', globalLoading:'글로벌 점수 불러오는 중…', globalEmpty:'아직 글로벌 점수가 없어요.', globalRetry:'글로벌 랭킹 새로고침', player:'플레이어',
     noRecords:'첫 번째 출격을 기다리고 있어요.', noRecordsDesc:'한 번의 전투를 마치면 점수가 기록돼요.', flights:'비행 횟수', kills:'적 처치', bosses:'보스 처치',
      score:'점수', time:'경과 시간', hull:'체력', power:'파워', shield:'쉴드', readyShield:'준비', activeShield:'작동 중', autoFire:'자동 발사', sector:'구간', ki:'기', specialReady:'Q를 떼면 발사', charging:'Q를 누르는 중', specialMissile:'특수 미사일', specialHelp:'Q 누르기 · 떼면 발사',
     pause:'일시정지', paused:'비행 일시정지', pauseDesc:'잠깐 쉬어가세요. 전투는 기다려줄게요.', resume:'계속하기', restart:'다시 시작', returnLobby:'로비로',
@@ -466,7 +478,7 @@
     t1:'기체를 움직여보세요', t1b:'게임 영역을 드래그하거나 방향키 / WASD를 누르세요.', t2:'공격은 자동이에요', t2b:'적과 위치를 맞춰보세요. 탄환은 자동으로 나가요.',
     t3:'쉴드를 사용해보세요', t3b:'Space 또는 쉴드를 누르면 3초 동안 보호받아요.', training:'비행 훈련', skip:'훈련 건너뛰기', trainingDone:'훈련 완료',
     trainingNote:'훈련 점수와 코인은 저장되지 않아요.', launchIn:'출격까지', resumeIn:'다시 시작',
-    settingsTitle:'나에게 맞는 조작으로.', music:'배경 음악', sound:'효과음', vibration:'진동 (지원 기기)', reduced:'효과 줄이기',
+    settingsTitle:'나에게 맞는 조작으로.', music:'배경 음악', sound:'효과음', vibration:'진동 (지원 기기)', reduced:'효과 줄이기', itchAccount:'ITCH.IO 계정', connectItch:'ITCH.IO 연결', disconnectItch:'연결 해제', itchNotConnected:'글로벌 점수를 저장하려면 itch.io 계정을 연결하세요.', itchConnected:'ITCH.IO 연결됨', itchConnectedAs:'로그인 계정: @{name}', itchId:'ITCH.IO ID', itchLoginFailed:'ITCH.IO 계정 연결에 실패했어요.', itchLoginRequired:'다음 전투의 글로벌 점수를 저장하려면 itch.io를 연결하세요.',
     leftHanded:'왼손 쉴드 배치', controlMode:'드래그 방식', relative:'상대 이동', absolute:'터치 위치 따라가기', language:'언어',
     on:'켬', off:'끔', replayTutorial:'튜토리얼 다시 보기', privacy:'데이터 및 크레딧', exportSave:'저장 데이터 내보내기', importSave:'저장 데이터 가져오기', reset:'로컬 데이터 초기화',
     resetTitle:'이 브라우저의 기록을 초기화할까요?', resetBody:'모든 코인, 기체, 미션, 설정, 비행 기록이 지워져요. 보관하려면 먼저 저장 데이터를 내보내세요.',
@@ -479,7 +491,7 @@
     fullscreen:'전체 화면', fullscreenUnavailable:'여기서는 전체 화면을 사용할 수 없어요. itch.io의 전체 화면 버튼을 이용하세요.', mute:'소리 전환',
     saveRecovered:'손상된 저장 정보를 복구했어요. 기록을 확인하고 파일로 백업해 두세요.', saveUnavailable:'브라우저 저장소를 사용할 수 없어요. 이 세션에서만 유지되니 저장 파일을 내보내세요.',
     lowEffects:'원활한 플레이를 위해 효과를 줄였어요.', close:'닫기', rotate:'화면을 세로로 돌려주세요.', rotateDesc:'세로형 전투 화면이에요. 휴대폰을 세워 계속 플레이하세요.',
-     version:'HTML5 에디션 · v1.5.0', threat:'위험 단계', countdownBoss:'보스 00:50', endpoint:'보스 격파',
+     version:'HTML5 에디션 · v1.7.0', threat:'위험 단계', countdownBoss:'보스 00:50', endpoint:'보스 격파',
     supply:'보급 접근', hpFull:'최대 체력 · +2', powerFull:'최대 파워 · +4', magnet:'자석', secured:'구간 확보',
     play_1:'전투 1회 완료', kill_50:'일반 적 50기 처치', kill_100:'일반 적 100기 처치', combo_15:'15 콤보 달성',
     power_5:'POWER 5단계 달성', survive_60:'60초 동안 생존', boss_kill:'보스 1기 격파', shield_2:'한 전투에서 쉴드 2회 사용', coin_40:'한 전투에서 코인 40개 획득',
@@ -490,6 +502,10 @@
   root.CC.I18N = { en, ko };
   en.pilotName='PILOT NAME'; en.pilotNamePlaceholder='Enter a public pilot name';
   ko.pilotName='파일럿 이름'; ko.pilotNamePlaceholder='공개할 파일럿 이름을 입력하세요';
+  ko.local='로컬 프로필'; ko.globalLinked='글로벌 연결됨'; ko.globalLinkRequired='ITCH 로그인 필요';
+  ko.localOnly='설정과 오프라인 기록은 이 브라우저에 저장돼요.';
+  en.privacyText='Global scores are sent to the Crazy Combat ranking server only after you connect an itch.io account. The server stores your itch.io user ID, itch.io username, public pilot name, cumulative score, and stage. Local settings, campaign progress, and offline records remain in this browser. The OAuth access key is exchanged for a game session and is not stored by Crazy Combat.';
+  ko.privacyText='itch.io 계정을 연결한 뒤에만 글로벌 점수가 Crazy Combat 랭킹 서버로 전송돼요. 서버에는 itch.io 사용자 ID, itch.io 사용자명, 공개 파일럿 이름, 누적 점수와 스테이지가 저장돼요. 로컬 설정, 캠페인 진행도와 오프라인 기록은 이 브라우저에 남아요. OAuth 접근 키는 게임 세션으로 교환되며 Crazy Combat 서버에 저장하지 않아요.';
 })(window);
 
 </script>
@@ -1122,8 +1138,27 @@
   let view='lobby',modalStack=[],toastTimer=0,lastFocused=null,previews=[],lastTime=0,accumulator=0,hudAt=0,previewAt=0,slowSeconds=0,autoReduced=false;
    let tutorialAfter=true,pointer=null,pendingImport=null,animationStart=0,lastDay=K.dateKey(),lastHud={};
    let globalBoard={status:C.leaderboardEndpoint?'idle':'offline',rows:[],error:''};
+  const AUTH_SESSION_KEY='cc_itch_session_v1';
+  function loadAuthSession(){
+    try{
+      const raw=root.sessionStorage?.getItem(AUTH_SESSION_KEY);if(!raw)return null;
+      const session=JSON.parse(raw);
+      if(!session||typeof session.sessionToken!=='string'||!session.user?.id)return null;
+      return session;
+    }catch(_){return null;}
+  }
+  let itchAuth=loadAuthSession(),oauthWindow=null,oauthState='';
   const keys=new Set(),P=()=>store.profile;
   function t(key,args={}){let text=CC.I18N[P().settings.language][key]||CC.I18N.en[key]||key;for(const [k,v]of Object.entries(args))text=text.replaceAll(`{${k}}`,String(v));return text;}
+  function authOrigin(){try{return new URL(C.leaderboardEndpoint).origin;}catch(_){return '';}}
+  function saveAuthSession(){try{if(itchAuth)root.sessionStorage?.setItem(AUTH_SESSION_KEY,JSON.stringify(itchAuth));else root.sessionStorage?.removeItem(AUTH_SESSION_KEY);}catch(_){} }
+  function itchAccountHTML(){
+    if(itchAuth?.user){
+      const user=itchAuth.user,display=String(user.username||user.displayName||user.id);
+      return `<section class="account-panel"><h3>${t('itchConnected')}</h3><p>${t('itchConnectedAs',{name:escape(display)})}</p><span class="account-id">${t('itchId')}: ${escape(String(user.id))}</span><button class="secondary-button" data-action="disconnect-itch">${t('disconnectItch')}</button></section>`;
+    }
+    return `<section class="account-panel"><h3>${t('itchAccount')}</h3><p>${t('itchNotConnected')}</p><button class="primary-button" data-action="connect-itch">${t('connectItch')}</button></section>`;
+  }
   function announce(message){$('announcement').textContent=message;}
   function toast(message,ms=4600){clearTimeout(toastTimer);$('toast').textContent=message;$('toast').classList.remove('hidden');toastTimer=setTimeout(()=>$('toast').classList.add('hidden'),ms);}
   function translatedToast(key,args={},ms){toast(t(key,args),ms);}
@@ -1156,7 +1191,7 @@
   function saveSettings(key,value){store.transaction(p=>{p.settings[key]=value;return true;});syncSettings();renderHeader();refreshHud(true);}
   function clearInput(){keys.clear();pointer=null;engine.target=null;}
   function renderHeader(){
-    const badge=$('storage-badge');badge.classList.toggle('memory',!store.persistent);badge.querySelector('span').textContent=t(store.persistent?'local':'memory');
+    const badge=$('storage-badge');badge.classList.toggle('memory',!store.persistent);badge.querySelector('span').textContent=itchAuth?.user?t('globalLinked'):C.leaderboardEndpoint?t('globalLinkRequired'):t(store.persistent?'local':'memory');
     $('lang-button').textContent=P().settings.language.toUpperCase();$('lang-button').setAttribute('aria-label',P().settings.language==='en'?'한국어로 변경':'Switch to English');
     $('mute-button').innerHTML=icon(audio.muted?'muted':'sound');$('mute-button').setAttribute('aria-label',t('mute'));$('mute-button').setAttribute('aria-pressed',String(audio.muted));
     for(const [id,k]of [['help-button','help'],['fullscreen-button','fullscreen'],['settings-button','settings'],['pause-button','pause']]){$(id).innerHTML=icon(k);$(id).setAttribute('aria-label',t(k));}
@@ -1201,8 +1236,39 @@
      else if(globalBoard.status==='offline')body=`<div class="global-status"><strong>${t('globalOffline')}</strong>${t('globalOfflineNote')}<br><small>${t('globalNote')}</small></div>`;
      else if(globalBoard.status==='error')body=`<div class="global-status"><strong>${t('globalOffline')}</strong>${escape(globalBoard.error||t('globalOfflineNote'))}<br><button class="secondary-button" data-action="global-refresh">${t('globalRetry')}</button></div>`;
      else if(!globalBoard.rows.length)body=`<div class="global-status">${t('globalEmpty')}<br><button class="secondary-button" data-action="global-refresh">${t('globalRetry')}</button></div>`;
-     else body=`<div class="global-list">${globalBoard.rows.slice(0,50).map((r,i)=>`<div class="global-row"><span class="global-rank">#${Number(r.rank)||i+1}</span><span class="global-name">${escape(r.name||'PILOT')}</span><span class="global-stage">${t('stage')} ${String(K.clamp(K.int(r.stage,C.totalStages)||1,1,C.totalStages)).padStart(3,'0')}</span><strong class="global-score">${number(r.score)}</strong></div>`).join('')}</div>`;
+     else body=`<div class="global-list">${globalBoard.rows.slice(0,50).map((r,i)=>`<div class="global-row"><span class="global-rank">#${Number(r.rank)||i+1}</span><span class="global-name">${escape(r.name||'PILOT')}${r.itchUsername?`<small>@${escape(r.itchUsername)}</small>`:''}</span><span class="global-stage">${t('stage')} ${String(K.clamp(K.int(r.stage,C.totalStages)||1,1,C.totalStages)).padStart(3,'0')}</span><strong class="global-score">${number(r.score)}</strong></div>`).join('')}</div>`;
      return `<section class="global-panel"><div class="global-panel-head"><div><h2>${t('globalRanking')}</h2><small>${t('globalNote')}</small></div>${globalBoard.status==='ready'?`<button class="secondary-button" data-action="global-refresh">${t('globalRetry')}</button>`:''}</div>${body}</section>`;
+   }
+   function connectItch(){
+     const origin=authOrigin();
+     if(!origin||typeof root.open!=='function'){translatedToast('itchLoginFailed');return;}
+     if(oauthWindow&&!oauthWindow.closed){oauthWindow.focus?.();return;}
+     oauthState=K.makePlayerId();
+     const url=`${origin}/auth/itch/start?state=${encodeURIComponent(oauthState)}`;
+     oauthWindow=root.open(url,'crazycombat-itch-login','popup,width=520,height=700');
+     if(!oauthWindow)translatedToast('itchLoginFailed');
+   }
+   function disconnectItch(){
+     itchAuth=null;saveAuthSession();translatedToast('disconnectItch');
+     renderHeader();
+     if(view==='settings')renderMenu();
+     if(modalStack.length)renderModal();
+   }
+   async function receiveItchAuth(event){
+     if(!oauthWindow||event.source!==oauthWindow||event.origin!==authOrigin())return;
+     const data=event.data||{};
+     if(data.type!=='crazycombat-itch-oauth'||data.state!==oauthState)return;
+     oauthWindow=null;
+     if(data.error||typeof data.accessToken!=='string'){translatedToast('itchLoginFailed');return;}
+     try{
+       const response=await fetch(`${authOrigin()}/auth/itch/exchange`,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({accessToken:data.accessToken})});
+       if(!response.ok)throw new Error(`HTTP ${response.status}`);
+       const result=await response.json();
+       if(!result.ok||typeof result.sessionToken!=='string'||!result.user?.id)throw new Error('Invalid account response');
+       itchAuth={sessionToken:result.sessionToken,user:result.user};saveAuthSession();renderHeader();translatedToast('itchConnectedAs',{name:result.user.username||result.user.id});
+       if(view==='settings')renderMenu();
+       if(modalStack.length)renderModal();
+     }catch(_){translatedToast('itchLoginFailed');}
    }
    async function loadGlobalLeaderboard(){
      if(!C.leaderboardEndpoint){globalBoard={status:'offline',rows:[],error:''};return;}
@@ -1213,13 +1279,22 @@
        if(!response.ok)throw new Error(`HTTP ${response.status}`);
        const raw=await response.json(),rows=Array.isArray(raw)?raw:(raw.entries||raw.rows||raw.data||[]);
        if(!Array.isArray(rows))throw new Error('Invalid leaderboard response');
-       globalBoard={status:'ready',rows:rows.filter(r=>r&&Number.isFinite(Number(r.score))).map(r=>({name:String(r.name||r.player||'PILOT').slice(0,32),score:K.int(r.score,C.score.cap),stage:K.clamp(K.int(r.stage,C.totalStages)||1,1,C.totalStages),rank:K.int(r.rank,100000)})).sort((a,b)=>b.score-a.score),error:''};
+       globalBoard={status:'ready',rows:rows.filter(r=>r&&Number.isFinite(Number(r.totalScore??r.total_score??r.score))).map(r=>({name:String(r.name||r.player||'PILOT').slice(0,32),itchUsername:String(r.itchUsername??r.itch_username??'').slice(0,32),score:K.int(Number(r.totalScore??r.total_score??r.score),C.score.totalCap),stage:K.clamp(K.int(Number(r.stage),C.totalStages)||1,1,C.totalStages),rank:K.int(Number(r.rank),100000)})).sort((a,b)=>b.score-a.score),error:''};
      }catch(error){globalBoard={status:'error',rows:[],error:error.message||'Unable to load scores'};}
      if(view==='records')renderMenu();
    }
    async function submitGlobalScore(result){
-     if(!C.leaderboardEndpoint||!result?.score)return;
-     try{await fetch(C.leaderboardEndpoint,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({name:P().pilotName||'PILOT',score:result.score,stage:result.stage||1,cleared:!!result.cleared,endedAt:result.endedAt})});}catch(_){/* Local records remain available when the service is offline. */}
+     if(!C.leaderboardEndpoint||!itchAuth?.sessionToken||!result||!Number.isFinite(Number(result.score))||Number(result.score)<0){if(C.leaderboardEndpoint&&!itchAuth?.sessionToken)translatedToast('itchLoginRequired');return;}
+     try{
+       const response=await fetch(C.leaderboardEndpoint,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json',Authorization:`Bearer ${itchAuth.sessionToken}`},body:JSON.stringify({
+         runId:result.runId,pilotName:P().pilotName||'PILOT',name:P().pilotName||'PILOT',runScore:result.score,score:result.score,
+         stage:result.stage||1,cleared:!!result.cleared,endedAt:result.endedAt
+       })});
+       if(response.status===401){itchAuth=null;saveAuthSession();renderHeader();if(view==='settings')renderModal();translatedToast('itchLoginRequired');return;}
+       if(!response.ok)throw new Error(`HTTP ${response.status}`);
+       globalBoard.status='idle';
+       if(view==='records')renderMenu();
+     }catch(_){/* Local records remain available when the service is offline. */}
    }
    function recordsHTML(){
     const p=P();
@@ -1297,14 +1372,14 @@
   function settingsHTML(){
     const settings=P().settings,inFlight=view==='flight';
     const rows=[['bgm','music'],['sfx','sound'],['haptic','vibration'],['reducedMotion','reduced'],['leftHanded','leftHanded']].map(([key,label])=>`<div class="setting-row"><span id="setting-label-${key}">${t(label)}</span><div class="toggle-wrap"><small>${t(settings[key]?'on':'off')}</small><button class="toggle-button" role="switch" aria-checked="${settings[key]}" aria-labelledby="setting-label-${key}" data-action="toggle" data-setting="${key}"></button></div></div>`).join('');
-    return `<div class="eyebrow modal-eyebrow">${t('settings')}</div><h2 id="modal-title">${t('settingsTitle')}</h2><div class="settings-rows">${rows}<label class="setting-row"><span>${t('controlMode')}</span><select id="control-mode"><option value="relative" ${settings.controlMode==='relative'?'selected':''}>${t('relative')}</option><option value="absolute" ${settings.controlMode==='absolute'?'selected':''}>${t('absolute')}</option></select></label><label class="setting-row"><span>${t('language')}</span><select id="language-select"><option value="en" ${settings.language==='en'?'selected':''}>English</option><option value="ko" ${settings.language==='ko'?'selected':''}>한국어</option></select></label></div><div class="settings-buttons"><button class="secondary-button" data-action="training" ${inFlight?'disabled':''}>${icon('plane')}${t('replayTutorial')}</button><button class="secondary-button" data-action="help">${icon('help')}${t('help')}</button><button class="secondary-button" data-action="export">${icon('download')}${t('exportSave')}</button><button class="secondary-button" data-action="import" ${inFlight?'disabled':''}>${icon('upload')}${t('importSave')}</button></div><p class="settings-note">${t('localOnly')}</p><div class="settings-bottom"><button class="text-button" data-action="privacy">${t('privacy')}</button><button class="text-button danger-button" data-action="reset" ${inFlight?'disabled':''}>${t('reset')}</button></div>`;
+    return `<div class="eyebrow modal-eyebrow">${t('settings')}</div><h2 id="modal-title">${t('settingsTitle')}</h2><div class="settings-rows">${rows}<label class="setting-row"><span>${t('controlMode')}</span><select id="control-mode"><option value="relative" ${settings.controlMode==='relative'?'selected':''}>${t('relative')}</option><option value="absolute" ${settings.controlMode==='absolute'?'selected':''}>${t('absolute')}</option></select></label><label class="setting-row"><span>${t('language')}</span><select id="language-select"><option value="en" ${settings.language==='en'?'selected':''}>English</option><option value="ko" ${settings.language==='ko'?'selected':''}>한국어</option></select></label></div><div class="settings-buttons"><button class="secondary-button" data-action="training" ${inFlight?'disabled':''}>${icon('plane')}${t('replayTutorial')}</button><button class="secondary-button" data-action="help">${icon('help')}${t('help')}</button><button class="secondary-button" data-action="export">${icon('download')}${t('exportSave')}</button><button class="secondary-button" data-action="import" ${inFlight?'disabled':''}>${icon('upload')}${t('importSave')}</button></div>${itchAccountHTML()}<p class="settings-note">${t('localOnly')}</p><div class="settings-bottom"><button class="text-button" data-action="privacy">${t('privacy')}</button><button class="text-button danger-button" data-action="reset" ${inFlight?'disabled':''}>${t('reset')}</button></div>`;
   }
   function manualHTML(){
      return `<div class="eyebrow modal-eyebrow">${t('help')}</div><h2 id="modal-title">${t('rules')}</h2><div class="manual-section"><h3>${t('controls')}</h3>${[['move',t('keyboard')],['move',t('drag')],['shield',t('shieldHelp')],['specialMissile',t('specialHelp')],['pause',t('pauseHelp')]].map(([a,b])=>`<div class="control-line"><span>${t(a)}</span><span>${b}</span></div>`).join('')}<p class="settings-note">${t('focusHelp')}</p></div><div class="manual-section">${[1,2,3,4,5].map(i=>`<div class="manual-rule"><b>0${i}</b><span>${t('rule'+i)}</span></div>`).join('')}</div><div class="manual-section"><h3>${t('items')}</h3>${[['P','powerItem'],['+','hpItem'],['M','magnetItem'],['S','shieldItem'],['✦','starsItem']].map(([a,b])=>`<div class="item-line"><span class="item-symbol">${a}</span><span>${t(b)}</span></div>`).join('')}</div>`;
   }
   function resultHTML(m){
     const r=m.result,b=r.breakdown;
-     return `<div class="result-emblem">${icon(r.cleared?'trophy':'plane')}</div><div class="eyebrow">${t('finalScore')} / ${r.duration.toFixed(1)}s</div><h2 id="modal-title">${t(r.cleared?'complete':'lost')}</h2><p>${t(r.cleared?'completeSub':'lostSub')}</p><div class="result-stage"><span>${t('stage')} <b>${String(r.stage||1).padStart(3,'0')} / ${C.totalStages}</b></span>${r.cleared?`<span>→ ${r.stage>=C.totalStages?t('finalStage'):`${t('nextStage')} ${String(Math.min(C.totalStages,r.stage+1)).padStart(3,'0')}`}</span>`:''}</div><div id="result-score" class="result-score">${number(r.score)}</div>${m.isBest?`<span class="new-best">${icon('trophy')}${t('newBest')}</span>`:`<span class="micro">${t('best')} / ${number(P().bestScore)}</span>`}<div class="score-breakdown">${[['combatScore',b.combat],['starScore',b.coins],['survival',b.survival],['hullBonus',b.health]].map(([k,n])=>`<div><span>${t(k)}</span><strong>${number(n)}</strong></div>`).join('')}</div><div class="result-stats"><div><span>${t('kills')}</span><strong>${r.kills}</strong></div><div><span>${t('maxCombo')}</span><strong>${r.maxCombo}</strong></div><div><span>${t('earned')}</span><strong class="gold">+${r.coins}</strong></div></div><div class="result-details"><span>BOSS / <b>${t(r.bossKilled?'defeated':'escaped')}</b></span><span>${t('specialMissile')} / <b>${r.specialMissiles||0}</b></span><span>POWER / <b>${r.maxPower} / 5</b></span></div><div class="stacked-actions"><button class="primary-button" data-action="retry">${r.cleared?t('nextStage'):t('retry')}${icon('arrow')}</button><div class="result-secondary"><button class="secondary-button" data-action="home">${t('returnLobby')}</button><button class="secondary-button" data-action="records">${t('records')}</button></div></div><p class="result-note">${t('coinsSaved')} ${t('localOnly')}</p>`;
+     return `<div class="result-emblem">${icon(r.cleared?'trophy':'plane')}</div><div class="eyebrow">${t('finalScore')} / ${r.duration.toFixed(1)}s</div><h2 id="modal-title">${t(r.cleared?'complete':'lost')}</h2><p>${t(r.cleared?'completeSub':'lostSub')}</p><div class="result-stage"><span>${t('stage')} <b>${String(r.stage||1).padStart(3,'0')} / ${C.totalStages}</b></span>${r.cleared?`<span>→ ${r.stage>=C.totalStages?t('finalStage'):`${t('nextStage')} ${String(Math.min(C.totalStages,r.stage+1)).padStart(3,'0')}`}</span>`:''}</div><div id="result-score" class="result-score">${number(r.score)}</div><div class="micro">${t('overallScore')} / ${number(P().overallScore)}</div>${m.isBest?`<span class="new-best">${icon('trophy')}${t('newBest')}</span>`:`<span class="micro">${t('best')} / ${number(P().bestScore)}</span>`}<div class="score-breakdown">${[['combatScore',b.combat],['starScore',b.coins],['survival',b.survival],['hullBonus',b.health]].map(([k,n])=>`<div><span>${t(k)}</span><strong>${number(n)}</strong></div>`).join('')}</div><div class="result-stats"><div><span>${t('kills')}</span><strong>${r.kills}</strong></div><div><span>${t('maxCombo')}</span><strong>${r.maxCombo}</strong></div><div><span>${t('earned')}</span><strong class="gold">+${r.coins}</strong></div></div><div class="result-details"><span>BOSS / <b>${t(r.bossKilled?'defeated':'escaped')}</b></span><span>${t('specialMissile')} / <b>${r.specialMissiles||0}</b></span><span>POWER / <b>${r.maxPower} / 5</b></span></div><div class="stacked-actions"><button class="primary-button" data-action="retry">${r.cleared?t('nextStage'):t('retry')}${icon('arrow')}</button><div class="result-secondary"><button class="secondary-button" data-action="home">${t('returnLobby')}</button><button class="secondary-button" data-action="records">${t('records')}</button></div></div><p class="result-note">${t('coinsSaved')} ${t('localOnly')}</p>`;
   }
   function renderModal(){
     const m=topModal();if(!m)return clearModals();
@@ -1353,6 +1428,8 @@
       case 'records':showView('records');break;
       case 'global-refresh':loadGlobalLeaderboard();break;
       case 'settings':ensurePause();openModal({type:'settings'});break;
+      case 'connect-itch':connectItch();break;
+      case 'disconnect-itch':disconnectItch();break;
       case 'help':ensurePause();openModal({type:'help'});break;
       case 'privacy':ensurePause();openModal({type:'privacy'});break;
       case 'language':changeLanguage(P().settings.language==='en'?'ko':'en');break;
@@ -1385,6 +1462,7 @@
     const button=event.target.closest('[data-action]');if(!button||button.disabled)return;
     audio.unlock();action(button.dataset.action,button);
   });
+  root.addEventListener('message',receiveItchAuth);
   $('modal-root').addEventListener('click',event=>{if(event.target===$('modal-root'))closeModal();});
   document.addEventListener('change',event=>{
     if(event.target.id==='pilot-name'){store.transaction(p=>{p.pilotName=String(event.target.value||'PILOT').trim().slice(0,24)||'PILOT';return true;});renderModal();}

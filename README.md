@@ -1,7 +1,8 @@
 # Crazy Combat
 
 Crazy Combat is a static HTML5 arcade game with 1,000 stages, boss battles,
-Q-hold special missile charging, local records, and an optional global ranking.
+Q-hold special missile charging, local campaign data, and an itch.io-authenticated
+global ranking.
 
 ## Run the game locally
 
@@ -30,13 +31,28 @@ The `ranking-server` directory contains an Express + PostgreSQL API. The root
    - `DATABASE_URL`: the copied Internal Database URL
    - `CORS_ORIGINS`: the HTTPS origin where the game is hosted, for example
      `https://YOUR-GITHUB-NAME.github.io`
-5. Deploy the service and verify `/healthz`.
-6. Set `leaderboardEndpoint` in `CrazyCombat.html` to:
+   - `AUTH_SECRET`: a long random secret used to sign game login sessions
+   - `ITCH_CLIENT_ID`: the Client ID from your itch.io OAuth application
+   - `ITCH_OAUTH_REDIRECT_URI`: exactly
+     `https://YOUR-SERVICE.onrender.com/auth/itch/callback`
+5. In itch.io account settings, create an OAuth application with the same
+   callback URL and request the `profile:me` scope.
+6. Deploy the service and verify `/healthz`.
+7. Set `leaderboardEndpoint` in `CrazyCombat.html` to:
 
    `https://YOUR-SERVICE.onrender.com/api/ranking`
 
-The API provides `GET /api/ranking` and `POST /api/ranking`. Scores are validated
-for stages 1–1000 and stored in PostgreSQL.
+The API provides `GET /api/ranking`, `POST /api/ranking`, and the itch.io OAuth
+routes. Each run is added to the authenticated itch.io user's cumulative score;
+the public ranking is sorted by that cumulative total and includes the public
+pilot name plus itch.io username. Scores are validated for stages 1–1000 and
+stored in PostgreSQL. The server also deduplicates retries by `runId`.
+
+The game cannot read an itch.io page's login cookie directly. Players connect
+through the in-game `CONNECT ITCH.IO` button. The server verifies the OAuth
+access token against itch.io, issues a signed game session, and does not store
+the OAuth access token. If `CORS_ORIGINS` is empty, the server allows all origins
+for first-time testing; restrict it to the actual game origin for production.
 
 The Blueprint intentionally does not create a database. This avoids the Render
 workspace limit of one active Free Postgres database. Reuse an existing database,
