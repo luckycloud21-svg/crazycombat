@@ -1336,8 +1336,12 @@
   }
   function refreshHud(force=false){
     if(view!=='flight')return;
-     const p=engine.p,s=engine.stats,state=engine.state,elapsed=engine.elapsed,score=Math.min(C.score.cap,s.combatScore+s.coinScore);
-     $('hud-score').textContent=String(score).padStart(6,'0');$('hud-time').innerHTML=`${Math.floor(elapsed)}<small>.${Math.floor(elapsed*10)%10}</small>`;
+     const p=engine.p,s=engine.stats,state=engine.state,elapsed=engine.elapsed;
+     const stageScore=Math.min(C.score.cap,s.combatScore+s.coinScore);
+     // Keep the HUD continuous across stages: completed stages are already in
+     // the browser profile, while the current stage is still live in the engine.
+     const cumulativeScore=Math.min(C.score.totalCap,Math.max(0,Number(P().overallScore)||0)+stageScore);
+     $('hud-score').textContent=String(cumulativeScore).padStart(6,'0');$('hud-score').setAttribute('aria-label',`${t('overallScore')}: ${number(cumulativeScore)}`);$('hud-time').innerHTML=`${Math.floor(elapsed)}<small>.${Math.floor(elapsed*10)%10}</small>`;
      document.querySelector('.hud-time').classList.remove('danger');
     if(force||lastHud.hp!==p.hp||lastHud.maxHp!==p.maxHp){$('hud-hp').innerHTML=Array.from({length:p.maxHp},(_,i)=>`<i class="${i>=p.hp?'empty':''}"></i>`).join('');$('hud-hp').setAttribute('aria-label',`${t('hull')}: ${p.hp} / ${p.maxHp}`);lastHud.hp=p.hp;lastHud.maxHp=p.maxHp;}
     if(force||lastHud.power!==p.power){$('hud-power').innerHTML=`<span>P${p.power}</span>`+[1,2,3,4,5].map(i=>`<i class="${i<=p.power?'full':''}"></i>`).join('');lastHud.power=p.power;}
@@ -1396,6 +1400,13 @@
       html=`<div class="eyebrow modal-eyebrow">CRAZY COMBAT</div><h2 id="modal-title">${escape(t(m.title,m.args))}</h2><p>${escape(t(m.body,m.args))}</p><div class="modal-actions"><button class="secondary-button" data-action="close-modal">${t('cancel')}</button><button class="primary-button ${m.danger?'danger-confirm':''}" data-action="confirm-modal">${escape(t(m.confirm,m.args))}</button></div>`;
     }else if(m.type==='error'){dismissible=false;html=`<h2 id="modal-title">CRAZY COMBAT</h2><p>${t('gameError')}</p><button class="primary-button" data-action="reload">RELOAD</button>`;}
     $('modal-root').innerHTML=`<div class="modal-card ${classes}" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1">${dismissible?`<button class="modal-close" data-action="close-modal" aria-label="${t('close')}">${icon('close')}</button>`:''}${html}</div>`;
+    if(m.type==='result'){
+      const total=$('result-score'),stageScore=total?.nextElementSibling;
+      if(total)total.textContent=number(P().overallScore);
+      if(stageScore)stageScore.textContent=`${t('finalScore')} / ${number(m.result.score)}`;
+      const label=$('modal-root').querySelector('.result-card > .eyebrow');
+      if(label)label.textContent=`${t('overallScore')} / ${m.result.duration.toFixed(1)}s`;
+    }
     if(m.type==='settings'){
       $('modal-root').querySelector('.settings-rows')?.insertAdjacentHTML('afterbegin',`<label class="setting-row"><span>${t('pilotName')}</span><input id="pilot-name" class="settings-input" maxlength="24" autocomplete="nickname" placeholder="${t('pilotNamePlaceholder')}" value="${escape(P().pilotName||'PILOT')}"></label>`);
     }
@@ -1548,7 +1559,7 @@
           engine.draw();if(now-hudAt>40){refreshHud();hudAt=now;}
           audio.music(engine.state==='playing',!!engine.boss?.active);
           const m=topModal();if(m?.type==='result'&&$('result-score')){
-            const f=P().settings.reducedMotion?1:K.clamp((now-animationStart)/600,0,1);$('result-score').textContent=number(m.result.score*(1-(1-f)**3));
+            const f=P().settings.reducedMotion?1:K.clamp((now-animationStart)/600,0,1),target=Math.min(C.score.totalCap,Math.max(0,Number(P().overallScore)||0));$('result-score').textContent=number(target*(1-(1-f)**3));
           }
         }
         if(now-previewAt>50){drawPreviews(now/1000);previewAt=now;}
