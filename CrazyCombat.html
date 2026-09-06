@@ -1164,11 +1164,22 @@
    let tutorialAfter=true,pointer=null,pendingImport=null,animationStart=0,lastDay=K.dateKey(),lastHud={};
    let globalBoard={status:C.leaderboardEndpoint?'idle':'offline',rows:[],error:''};
   const AUTH_SESSION_KEY='cc_itch_session_v1';
+  function authStorage(){try{return root.localStorage||null;}catch(_){return null;}}
+  function legacyAuthStorage(){try{return root.sessionStorage||null;}catch(_){return null;}}
   function loadAuthSession(){
     try{
-      const raw=root.sessionStorage?.getItem(AUTH_SESSION_KEY);if(!raw)return null;
+      const persistent=authStorage(),legacy=legacyAuthStorage();
+      const raw=persistent?.getItem(AUTH_SESSION_KEY)||legacy?.getItem(AUTH_SESSION_KEY);if(!raw)return null;
       const session=JSON.parse(raw);
       if(!session||typeof session.sessionToken!=='string'||!session.user?.id)return null;
+      if(Number.isFinite(Number(session.expiresAt))&&Number(session.expiresAt)<=Date.now()){
+        persistent?.removeItem(AUTH_SESSION_KEY);legacy?.removeItem(AUTH_SESSION_KEY);return null;
+      }
+      // Migrate sessions created by older builds so the connection survives
+      // closing the tab or restarting the browser.
+      if(persistent&&!persistent.getItem(AUTH_SESSION_KEY)){
+        try{persistent?.setItem(AUTH_SESSION_KEY,raw);legacy?.removeItem(AUTH_SESSION_KEY);}catch(_){}
+      }
       return session;
     }catch(_){return null;}
   }
@@ -1176,7 +1187,16 @@
   const keys=new Set(),P=()=>store.profile;
   function t(key,args={}){let text=CC.I18N[P().settings.language][key]||CC.I18N.en[key]||key;for(const [k,v]of Object.entries(args))text=text.replaceAll(`{${k}}`,String(v));return text;}
   function authOrigin(){try{return new URL(C.leaderboardEndpoint).origin;}catch(_){return '';}}
-  function saveAuthSession(){try{if(itchAuth)root.sessionStorage?.setItem(AUTH_SESSION_KEY,JSON.stringify(itchAuth));else root.sessionStorage?.removeItem(AUTH_SESSION_KEY);}catch(_){} }
+  function saveAuthSession(){
+    const persistent=authStorage(),legacy=legacyAuthStorage();
+    try{
+      if(itchAuth){
+        const raw=JSON.stringify(itchAuth);
+        if(persistent){try{persistent.setItem(AUTH_SESSION_KEY,raw);legacy?.removeItem(AUTH_SESSION_KEY);}catch(_){legacy?.setItem(AUTH_SESSION_KEY,raw);}}
+        else legacy?.setItem(AUTH_SESSION_KEY,raw);
+      }else{persistent?.removeItem(AUTH_SESSION_KEY);legacy?.removeItem(AUTH_SESSION_KEY);}
+    }catch(_){}
+  }
   function itchAccountHTML(){
     if(itchAuth?.user){
       const user=itchAuth.user,display=String(user.username||user.displayName||user.id);
@@ -1245,7 +1265,7 @@
   }
   function lobbyHTML(){
     const p=P(),s=C.ships.find(x=>x.id===p.equippedPlaneId);
-     return `<div class="lobby-grid"><section class="hero"><div class="hero-ship-label"><small>${s.code}</small>${s.name}</div><canvas class="hero-preview" data-ship="${s.id}" aria-hidden="true"></canvas><div class="hero-content"><div class="eyebrow"><i></i>${t('division')}</div><h1><span>CRAZY</span><span>COMBAT</span></h1><p class="hero-subtitle">${t('subtitle')}</p><p class="hero-description">${t('intro')}</p><div class="hero-actions"><button class="primary-button" data-action="new-campaign">${t('newCampaign')}${icon('arrow')}</button>${p.currentStage>1||p.overallScore>0?`<button class="secondary-button" data-action="continue">${t('continue')}</button>`:''}<span class="button-caption">${t('ready')}</span></div></div><div class="hero-annotation">${s.code} / ${s.name}<br>SYS. ONLINE · PWR ${String(p.currentPower).padStart(2,'0')}<br>STAGE ${String(p.currentStage).padStart(3,'0')} / 1000</div><div class="flight-path"><span><b>001</b> / START</span><i></i><span><b>500</b> / MIDWAY</span><i></i><span><b>1000</b> / FINAL</span></div></section><aside class="sidebar"><section class="missions-panel"><div class="section-label"><h2>${t('mission')}</h2><small>${p.dailyMission.dateKey.slice(5).replace('-',' / ')}</small></div><p class="daily-note">${t('localDate')}</p>${p.dailyMission.missions.map(missionCard).join('')}</section><section class="record-panel"><div class="section-label"><span class="micro">${t('campaign')}</span>${icon('trophy')}</div><div class="best-score">${String(p.currentStage).padStart(3,'0')}<small style="font-size:15px;color:var(--muted)"> / 1000</small></div><p>${t('currentStage')} · ${t('overallScore')} ${number(p.overallScore)}</p><div class="stage-progress"><div class="stage-progress-head"><small>${t('stage')} ${p.currentStage} / ${C.totalStages}</small><strong>${Math.round(p.currentStage/C.totalStages*100)}%</strong></div><div class="stage-track"><i style="width:${p.currentStage/C.totalStages*100}%"></i></div><div class="stage-caption"><span>${t('stage')} 001</span><span>${t('finalStage')} 1000</span></div></div></section></aside></div><div class="pilot-bar"><div class="pilot-id"><canvas class="pilot-preview" data-ship="${s.id}" aria-hidden="true"></canvas><div><span class="micro">${t('equipped')}</span><h3>${s.name}<span class="pilot-tag">${s.code}</span></h3><span class="pilot-subtitle">${t(s.id+'Type')}</span></div></div><nav class="nav-buttons" aria-label="${t('help')}"><button class="secondary-button" data-action="hangar">${icon('hangar')}${t('hangar')}</button><button class="secondary-button" data-action="records">${icon('trophy')}${t('records')}</button><button class="secondary-button small-settings" data-action="settings" aria-label="${t('settings')}">${icon('settings')}</button></nav></div>`;
+     return `<div class="lobby-grid"><section class="hero"><div class="hero-ship-label"><small>${s.code}</small>${s.name}</div><canvas class="hero-preview" data-ship="${s.id}" aria-hidden="true"></canvas><div class="hero-content"><div class="eyebrow"><i></i>${t('division')}</div><h1><span>CRAZY</span><span>COMBAT</span></h1><p class="hero-subtitle">${t('subtitle')}</p><p class="hero-description">${t('intro')}</p><div class="hero-actions"><button class="primary-button" data-action="new-campaign">${t('newCampaign')}${icon('arrow')}</button><span class="button-caption">${t('ready')}</span></div></div><div class="hero-annotation">${s.code} / ${s.name}<br>SYS. ONLINE · PWR ${String(p.currentPower).padStart(2,'0')}<br>STAGE ${String(p.currentStage).padStart(3,'0')} / 1000</div><div class="flight-path"><span><b>001</b> / START</span><i></i><span><b>500</b> / MIDWAY</span><i></i><span><b>1000</b> / FINAL</span></div></section><aside class="sidebar"><section class="missions-panel"><div class="section-label"><h2>${t('mission')}</h2><small>${p.dailyMission.dateKey.slice(5).replace('-',' / ')}</small></div><p class="daily-note">${t('localDate')}</p>${p.dailyMission.missions.map(missionCard).join('')}</section><section class="record-panel"><div class="section-label"><span class="micro">${t('campaign')}</span>${icon('trophy')}</div><div class="best-score">${String(p.currentStage).padStart(3,'0')}<small style="font-size:15px;color:var(--muted)"> / 1000</small></div><p>${t('currentStage')} · ${t('overallScore')} ${number(p.overallScore)}</p><div class="stage-progress"><div class="stage-progress-head"><small>${t('stage')} ${p.currentStage} / ${C.totalStages}</small><strong>${Math.round(p.currentStage/C.totalStages*100)}%</strong></div><div class="stage-track"><i style="width:${p.currentStage/C.totalStages*100}%"></i></div><div class="stage-caption"><span>${t('stage')} 001</span><span>${t('finalStage')} 1000</span></div></div></section></aside></div><div class="pilot-bar"><div class="pilot-id"><canvas class="pilot-preview" data-ship="${s.id}" aria-hidden="true"></canvas><div><span class="micro">${t('equipped')}</span><h3>${s.name}<span class="pilot-tag">${s.code}</span></h3><span class="pilot-subtitle">${t(s.id+'Type')}</span></div></div><nav class="nav-buttons" aria-label="${t('help')}"><button class="secondary-button" data-action="hangar">${icon('hangar')}${t('hangar')}</button><button class="secondary-button" data-action="records">${icon('trophy')}${t('records')}</button><button class="secondary-button small-settings" data-action="settings" aria-label="${t('settings')}">${icon('settings')}</button></nav></div>`;
   }
   function heading(k,title,desc,extra=''){return `<div class="page-heading"><div><button class="back-button" data-action="home">${icon('back')}${t('back')}</button><div class="eyebrow">${t(k)}</div><h1>${t(title)}</h1><p>${t(desc)}</p></div>${extra}</div>`;}
    function hangarHTML(){
@@ -1290,7 +1310,7 @@
        if(!response.ok)throw new Error(`HTTP ${response.status}`);
        const result=await response.json();
        if(!result.ok||typeof result.sessionToken!=='string'||!result.user?.id)throw new Error('Invalid account response');
-       itchAuth={sessionToken:result.sessionToken,user:result.user};saveAuthSession();renderHeader();translatedToast('itchConnectedAs',{name:result.user.username||result.user.id});
+       itchAuth={sessionToken:result.sessionToken,expiresAt:Date.now()+Math.max(60,Number(result.expiresIn)||30*24*60*60)*1000,user:result.user};saveAuthSession();renderHeader();translatedToast('itchConnectedAs',{name:result.user.username||result.user.id});
        if(view==='settings')renderMenu();
        if(modalStack.length)renderModal();
      }catch(_){translatedToast('itchLoginFailed');}
@@ -1463,7 +1483,6 @@
     switch(name){
        case 'launch':startNewCampaign();break;
        case 'new-campaign':startNewCampaign();break;
-       case 'continue':enterFlight(false,true);break;
        case 'retry':enterFlight(false,true);break;
       case 'home':
         if(['playing','paused','countdown','tutorial','resuming'].includes(engine.state)){ensurePause();action('abandon');}
