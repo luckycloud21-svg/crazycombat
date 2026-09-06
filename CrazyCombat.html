@@ -1523,7 +1523,9 @@
       const top=$('game-layout').getBoundingClientRect().top+root.scrollY,availableH=Math.max(120,(document.documentElement.clientHeight||root.innerHeight)-top-12),totalW=$('game-layout').clientWidth;
       const sides=matchMedia('(min-width:881px) and (min-height:651px)').matches;
       const availableW=totalW-(sides?(root.innerWidth>1050?452:388):0);
-      const width=Math.max(145,Math.min(432,availableW,availableH*9/16));
+      // Give desktop and itch.io embeds a larger playfield while preserving the
+      // portrait aspect ratio and fitting the current viewport.
+      const width=Math.max(145,Math.min(540,availableW,availableH*9/16));
       $('game-field').style.width=width+'px';$('game-field').style.height=width*16/9+'px';engine.resize();
       // Portrait is preserved by letterboxing, not an unsupported browser orientation lock.
       const landscapePhone=matchMedia('(pointer:coarse)').matches&&root.innerWidth>root.innerHeight&&root.innerHeight<480;
