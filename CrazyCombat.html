@@ -110,7 +110,7 @@
     totalStages: 1000,
     // HTTPS JSON endpoint: GET returns an array (or {entries:[]}); POST accepts score payloads.
     // It can be supplied by the host page or with ?leaderboard=https%3A%2F%2F… .
-    leaderboardEndpoint: root.CRAZY_COMBAT_LEADERBOARD_ENDPOINT || (root.location?.search ? new URLSearchParams(root.location.search).get('leaderboard') || '' : ''),
+    leaderboardEndpoint: root.CRAZY_COMBAT_LEADERBOARD_ENDPOINT || (root.location?.search ? new URLSearchParams(root.location.search).get('leaderboard') || '' : '') || 'https://crazycombat.onrender.com/api/ranking',
     width: 432, height: 768, runSeconds: null, bossSpawnSeconds: 50,
     player: { hp: 3, radius: 10, speed: 335, hitInvincible: 1, shieldSeconds: 3, shieldCooldown: 20, maxPower: 5 },
     weapons: [
