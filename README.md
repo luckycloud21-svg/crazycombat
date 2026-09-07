@@ -11,6 +11,28 @@ server. The game works offline; without a ranking endpoint it uses local records
 
 `index.html` redirects to the game and is included for GitHub Pages hosting.
 
+## Downloadable Windows app
+
+The project can also be distributed as a Windows desktop app. Electron runs the
+same game locally, so campaign progress and settings continue to work offline.
+
+Install the build dependencies and create both a normal installer and a
+portable executable:
+
+```powershell
+npm install
+npm run dist:win
+```
+
+The generated files are placed in `dist`:
+
+- `Crazy-Combat-1.10.0-x64.exe` — Windows installer
+- `Crazy-Combat-1.10.0-portable.exe` — no-install portable app
+
+The desktop app opens the itch.io login flow in an in-app child window. Global
+ranking still requires an internet connection and a connected itch.io account;
+offline gameplay remains available without either.
+
 ### GitHub Pages
 
 In the repository settings, open **Pages**, choose **Deploy from a branch**, then

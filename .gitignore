@@ -1,4 +1,7 @@
 ranking-server/node_modules/
 ranking-server/.env
+node_modules/
+dist/
+release/
 npm-debug.log*
 .DS_Store

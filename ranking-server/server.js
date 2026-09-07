@@ -28,7 +28,10 @@ const allowedOrigins = (process.env.CORS_ORIGINS || '')
   .filter(Boolean);
 
 function isAllowedOrigin(origin) {
-  if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) return true;
+  // Electron loads the downloadable desktop build from a local file origin.
+  // Chromium may send either `file://` or `null` for that origin.
+  if (!origin || origin === 'null' || origin === 'file://') return true;
+  if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) return true;
   try {
     const url = new URL(origin);
     const host = url.hostname.toLowerCase();
