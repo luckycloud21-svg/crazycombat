@@ -134,6 +134,65 @@
   @media(max-width:380px){.rotate-notice{padding:22px 18px}.rotate-notice h2{font-size:21px}.rotate-notice p{font-size:11px}.rotate-notice .rotate-retry{min-width:180px}}
   @media(pointer:coarse) and (orientation:portrait) and (max-width:720px){#rotate-notice{display:none!important}}
 </style>
+<style id="mobile-lobby-layout">
+  @media(max-width:720px), (pointer:coarse) and (orientation:portrait) and (max-width:900px){
+    body:not(.in-flight) .masthead{height:70px;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+    body:not(.in-flight) .menu{padding-top:14px;min-height:0}
+    body:not(.in-flight) .lobby-grid{grid-template-columns:1fr;gap:14px}
+    body:not(.in-flight) .hero{min-height:550px;border-radius:16px}
+    body:not(.in-flight) .hero-content{min-height:486px;padding:24px 22px 128px}
+    body:not(.in-flight) .hero .eyebrow{font-size:10px;letter-spacing:1.4px}
+    body:not(.in-flight) .hero h1{font-size:clamp(47px,16vw,70px);line-height:.94;letter-spacing:-3.8px;margin:24px 0 18px;max-width:100%;overflow-wrap:normal}
+    body:not(.in-flight) .hero-subtitle{max-width:270px;font-size:16px;line-height:1.45;margin-bottom:8px}
+    body:not(.in-flight) .hero-description{max-width:245px;font-size:13px;line-height:1.6}
+    body:not(.in-flight) .hero-preview{width:190px;height:230px;right:-15px;top:auto;bottom:68px;opacity:.38}
+    body:not(.in-flight) .hero-ship-label,body:not(.in-flight) .hero-annotation{display:none}
+    body:not(.in-flight) .hero-actions{position:relative;z-index:3;display:grid;grid-template-columns:1fr;gap:8px;margin-top:22px;max-width:235px}
+    body:not(.in-flight) .hero-actions .primary-button{width:100%;min-width:0;min-height:52px}
+    body:not(.in-flight) .button-caption{max-width:none;text-align:center;font-size:10px}
+    body:not(.in-flight) .flight-path{height:62px;padding:0 17px;gap:7px}
+    body:not(.in-flight) .flight-path span{font-size:8px;letter-spacing:.35px}
+    body:not(.in-flight) .sidebar{display:grid;grid-template-columns:1fr;gap:14px}
+    body:not(.in-flight) .missions-panel{padding:18px 17px 9px}
+    body:not(.in-flight) .section-label{align-items:flex-start}
+    body:not(.in-flight) .section-label h2{font-size:14px;letter-spacing:1.2px}
+    body:not(.in-flight) .section-label small{font-size:10px}
+    body:not(.in-flight) .daily-note{font-size:11px;line-height:1.45;margin:5px 0 13px}
+    body:not(.in-flight) .mission-card{padding:14px 0}
+    body:not(.in-flight) .mission-head{align-items:flex-start}
+    body:not(.in-flight) .mission-name{font-size:13px;line-height:1.45}
+    body:not(.in-flight) .mission-reward{font-size:10px}
+    body:not(.in-flight) .record-panel{padding:17px 18px}
+    body:not(.in-flight) .record-panel .best-score{font-size:36px}
+    body:not(.in-flight) .record-panel p{font-size:11px;line-height:1.5}
+    body:not(.in-flight) .record-panel .stage-progress{grid-column:1/-1}
+    body:not(.in-flight) .stage-progress{margin-top:14px}
+    body:not(.in-flight) .pilot-bar{margin-top:14px;padding:14px 15px;display:flex;flex-direction:column;align-items:stretch;gap:13px}
+    body:not(.in-flight) .pilot-id{width:100%}
+    body:not(.in-flight) .nav-buttons{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+    body:not(.in-flight) .nav-buttons .secondary-button{min-width:0;min-height:44px;padding:8px 4px;font-size:9px;letter-spacing:.1px;gap:5px;white-space:nowrap}
+    body:not(.in-flight) .nav-buttons svg{width:15px;height:15px}
+    body:not(.in-flight) .footer{min-height:60px;padding-bottom:env(safe-area-inset-bottom)}
+  }
+  @media(max-width:380px){
+    body:not(.in-flight) .masthead{height:66px}
+    body:not(.in-flight) .brand>span{font-size:11px;letter-spacing:2px}
+    body:not(.in-flight) .brand-mark{width:29px;height:29px}
+    body:not(.in-flight) .tool-button{width:38px}
+    body:not(.in-flight) .hero{min-height:520px}
+    body:not(.in-flight) .hero-content{padding-left:18px;padding-right:18px;padding-bottom:116px}
+    body:not(.in-flight) .hero h1{font-size:clamp(47px,15vw,58px);letter-spacing:-3.2px;margin-top:22px}
+    body:not(.in-flight) .hero-subtitle{max-width:220px;font-size:14px}
+    body:not(.in-flight) .hero-description{max-width:210px;font-size:12px}
+    body:not(.in-flight) .hero-preview{width:165px;height:205px;right:-23px;bottom:66px;opacity:.3}
+    body:not(.in-flight) .hero-actions{max-width:210px;margin-top:18px}
+    body:not(.in-flight) .flight-path{padding:0 12px}
+    body:not(.in-flight) .flight-path span{font-size:7px}
+    body:not(.in-flight) .record-panel{padding-left:15px;padding-right:15px}
+    body:not(.in-flight) .record-panel .best-score{font-size:32px}
+    body:not(.in-flight) .nav-buttons .secondary-button{font-size:8px}
+  }
+</style>
 </head>
 <body>
   <div id="boot">CRAZY COMBAT <span>Initializing flight systems…</span></div>
