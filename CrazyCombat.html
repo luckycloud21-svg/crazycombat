@@ -134,7 +134,7 @@
   @media(max-width:380px){.rotate-notice{padding:22px 18px}.rotate-notice h2{font-size:21px}.rotate-notice p{font-size:11px}.rotate-notice .rotate-retry{min-width:180px}}
   @media(pointer:coarse) and (orientation:portrait) and (max-width:720px){#rotate-notice{display:none!important}}
 </style>
-<style id="mobile-lobby-layout">
+  <style id="mobile-lobby-layout">
   @media(max-width:720px), (pointer:coarse) and (orientation:portrait) and (max-width:900px){
     body:not(.in-flight) .masthead{height:70px;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
     body:not(.in-flight) .menu{padding-top:14px;min-height:0}
@@ -193,6 +193,12 @@
     body:not(.in-flight) .nav-buttons .secondary-button{font-size:8px}
   }
 </style>
+<style id="mobile-input-ui">
+  .superbomb-hud{width:max-content;max-width:calc(100% - 36px);margin-left:auto;pointer-events:auto;cursor:pointer;touch-action:manipulation;user-select:none;text-align:left}
+  .superbomb-hud:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+  .superbomb-hud:disabled{cursor:not-allowed}
+  @media(max-width:680px){.superbomb-hud{max-width:calc(100% - 24px);margin-left:auto;margin-right:12px}}
+</style>
 </head>
 <body>
   <div id="boot">CRAZY COMBAT <span>Initializing flight systems…</span></div>
@@ -228,7 +234,7 @@
              <div class="timeline"><div id="hud-progress"></div><span></span></div>
              <div class="stage-hud"><span id="hud-stage-label">STAGE 001 / 1000</span><strong id="hud-difficulty">THREAT ×1.0</strong></div>
              <div class="ki-hud"><div class="ki-head"><span><span data-i18n="ki">KI</span> / <span data-i18n="specialMissile">SPECIAL MISSILE</span></span><strong id="hud-ki-status">CHARGING 0%</strong></div><div id="hud-ki-track" class="ki-track"><i id="hud-ki"></i></div></div>
-             <div id="superbomb-hud" class="superbomb-hud hidden" aria-live="polite"><span class="superbomb-key">E</span><div><span data-i18n="superBomb">SUPER BOMB</span><strong id="hud-superbomb-status">READY</strong></div></div>
+             <button id="superbomb-hud" class="superbomb-hud hidden" type="button" aria-live="polite" aria-label="Fire super bomb"><span class="superbomb-key">E</span><div><span data-i18n="superBomb">SUPER BOMB</span><strong id="hud-superbomb-status">READY</strong></div></button>
              <div id="boss-hud" class="boss-hud hidden"><div><span data-i18n="bossName">DREADNOUGHT</span><span id="boss-hp-text">1200</span></div><div class="boss-track"><i id="boss-health"></i></div></div>
             <div id="combo-hud" class="combo-hud hidden"><strong id="combo-number">5</strong><div><span>COMBO</span><b id="combo-multiplier">×1.1</b></div><i id="combo-timer"></i></div>
             <div id="banner" class="field-banner hidden"></div>
@@ -637,7 +643,7 @@
   'use strict';
   const en = {
      division:'ARCADE FLIGHT DIVISION', local:'LOCAL PROFILE', memory:'SESSION ONLY', globalLinked:'GLOBAL LINKED', globalLinkRequired:'ITCH LOGIN NEEDED', subtitle:'No clock. Make every stage count.',
-     intro:'Hold Q to charge KI, release it to fire a straight special missile. Collect a Super Bomb and press E to detonate it with a shield.', launch:'LAUNCH MISSION', newCampaign:'NEW CAMPAIGN', campaignScore:'CAMPAIGN SCORE', ready:'READY FOR TAKEOFF', mission:'DAILY MISSIONS', campaign:'1,000-STAGE CAMPAIGN', stage:'STAGE', stages:'STAGES', currentStage:'CURRENT STAGE', overallScore:'OVERALL SCORE', overallRank:'OVERALL RANK',
+     intro:'Hold Q to charge KI, release it to fire a straight special missile. Collect a Super Bomb and press E, middle-click, or tap the HUD button to detonate it with a shield.', launch:'LAUNCH MISSION', newCampaign:'NEW CAMPAIGN', campaignScore:'CAMPAIGN SCORE', ready:'READY FOR TAKEOFF', mission:'DAILY MISSIONS', campaign:'1,000-STAGE CAMPAIGN', stage:'STAGE', stages:'STAGES', currentStage:'CURRENT STAGE', overallScore:'OVERALL SCORE', overallRank:'OVERALL RANK',
     localDate:'Resets at local midnight', claim:'CLAIM', claimed:'CLAIMED', reward:'REWARD', best:'PERSONAL BEST', bestNote:'Your next flight could be your best.',
     hangar:'HANGAR', records:'FLIGHT RECORDS', settings:'SETTINGS', equipped:'EQUIPPED', equip:'EQUIP SHIP', owned:'OWNED', unlock:'UNLOCK', locked:'LOCKED',
     chooseShip:'Choose your signature.', cosmetic:'Every ship has a different combat profile. Pick your advantage.',
@@ -653,7 +659,7 @@
     confirmBuy:'UNLOCK & EQUIP', shipUnlocked:'{name} unlocked and equipped.', shipEquipped:'{name} equipped.',
      recordsTitle:'Every flight leaves a mark.', recordsNote:'Your overall ranking across every stage, stored in this browser.', globalRanking:'GLOBAL SCORE RANKING', globalNote:'Total score = highest stage × cumulative score for the itch.io account.', globalOffline:'ONLINE LEADERBOARD NOT CONNECTED', globalOfflineNote:'This standalone HTML build is ready for a leaderboard API. Local ranking remains available below.', globalLoading:'LOADING GLOBAL SCORES…', globalEmpty:'No global scores yet.', globalRetry:'REFRESH GLOBAL RANKING', player:'PLAYER',
     noRecords:'Your first sortie starts here.', noRecordsDesc:'Complete a mission to log your first score.', flights:'FLIGHTS', kills:'ENEMIES', bosses:'BOSSES',
-     score:'SCORE', time:'ELAPSED', hull:'HULL', power:'POWER', shield:'SHIELD', readyShield:'READY', activeShield:'ACTIVE', autoFire:'AUTO FIRE', sector:'SECTOR', ki:'KI', specialReady:'RELEASE Q TO FIRE', charging:'HOLD Q TO CHARGE', specialMissile:'SPECIAL MISSILE', specialHelp:'HOLD Q · RELEASE TO FIRE', superBomb:'SUPER BOMB', superBombReady:'E · FIRE SUPER BOMB', superBombHelp:'Collect the bomb, then press E to fire it with a shield.', superBombFired:'SUPER BOMB FIRED · SHIELD ACTIVE',
+    score:'SCORE', time:'ELAPSED', hull:'HULL', power:'POWER', shield:'SHIELD', readyShield:'READY', activeShield:'ACTIVE', autoFire:'AUTO FIRE', sector:'SECTOR', ki:'KI', specialReady:'RELEASE Q TO FIRE', charging:'HOLD Q TO CHARGE', specialMissile:'SPECIAL MISSILE', specialHelp:'HOLD Q / RIGHT CLICK · RELEASE TO FIRE', superBomb:'SUPER BOMB', superBombReady:'E / MIDDLE CLICK · FIRE SUPER BOMB', superBombHelp:'Collect the bomb, then press E, middle-click, or tap the E button to fire it with a shield.', superBombFired:'SUPER BOMB FIRED · SHIELD ACTIVE',
     pause:'PAUSE', paused:'FLIGHT PAUSED', pauseDesc:'Take a breath. Your mission will wait.', resume:'RESUME FLIGHT', restart:'RESTART', returnLobby:'RETURN TO BASE',
     abortTitle:'Abandon this flight?', abortBody:'This unfinished run will not earn coins, a record, or mission progress.', abandon:'ABANDON', cancel:'CANCEL',
     restartTitle:'Start a new flight?', restartBody:'This unfinished run will be discarded. Your saved progress is safe.',
@@ -663,7 +669,7 @@
     maxCombo:'MAX COMBO', earned:'COINS EARNED', survived:'FLIGHT TIME', defeated:'DESTROYED', escaped:'NOT DESTROYED', retry:'FLY AGAIN',
      coinsSaved:'Coins already added to your balance.', noAds:'No ads. No paid stat boosts.', localOnly:'Settings and offline records stay on this browser.', rankingLocal:'LOCAL OVERALL RANKING', rankRuns:'Ranked by stage score across all of your runs.',
     help:'FLIGHT MANUAL', controls:'CONTROLS', move:'MOVE', keyboard:'Arrow keys / WASD', mouse:'MOUSE', mouseMove:'Drag the playfield to move', drag:'Drag anywhere in the playfield',
-    shieldHelp:'Space / Shift or the shield button', pauseHelp:'Escape / P', focusHelp:'Click or tap the game once to give it keyboard focus.', responsiveControls:'MOVE: MOUSE DRAG · ARROW KEYS / WASD · SHIELD: SPACE · SUPER BOMB: E',
+    shieldHelp:'Space / Shift or the shield button', pauseHelp:'Escape / P', focusHelp:'Click or tap the game once to give it keyboard focus.', responsiveControls:'MOVE: MOUSE DRAG · ARROW KEYS / WASD · SPECIAL: RIGHT CLICK / Q · SHIELD: SPACE · SUPER BOMB: E / MIDDLE CLICK / TAP',
      rules:'MISSION BRIEFING', rule1:'There is no time limit. Defeat the boss to clear the stage.',
      rule2:'Clear the stage to unlock the next one. There are 1,000 stages, and every stage gets harder.',
     rule3:'Your shield lasts 3 seconds and recharges every 20 seconds.',
@@ -713,7 +719,7 @@
     confirmBuy:'해금하고 장착', shipUnlocked:'{name} 기체를 해금하고 장착했어요.', shipEquipped:'{name} 기체를 장착했어요.',
     recordsTitle:'모든 비행에는 기록이 남아요.', recordsNote:'모든 스테이지의 전투 기록을 점수순으로 보여줘요.', globalRanking:'글로벌 점수 랭킹', globalNote:'총점수 = 최고 스테이지 × 계정 누적점수로 계산해요. 점수를 저장하려면 itch.io를 연결하세요.', globalOffline:'온라인 랭킹 서버 미연결', globalOfflineNote:'이 단일 HTML 버전은 랭킹 API 연동을 지원해요. 아래에서 로컬 랭킹을 확인할 수 있어요.', globalLoading:'글로벌 점수 불러오는 중…', globalEmpty:'아직 글로벌 점수가 없어요.', globalRetry:'글로벌 랭킹 새로고침', player:'플레이어',
     noRecords:'첫 번째 출격을 기다리고 있어요.', noRecordsDesc:'한 번의 전투를 마치면 점수가 기록돼요.', flights:'비행 횟수', kills:'적 처치', bosses:'보스 처치',
-     score:'점수', time:'경과 시간', hull:'체력', power:'파워', shield:'쉴드', readyShield:'준비', activeShield:'작동 중', autoFire:'자동 발사', sector:'구간', ki:'기', specialReady:'Q를 떼면 발사', charging:'Q를 누르는 중', specialMissile:'특수 미사일', specialHelp:'Q 누르기 · 떼면 발사', superBomb:'슈퍼밤', superBombReady:'E · 슈퍼밤 발사', superBombHelp:'슈퍼밤을 먹은 뒤 E를 누르면 쉴드와 함께 발사돼요.', superBombFired:'슈퍼밤 발사 · 쉴드 작동',
+     score:'점수', time:'경과 시간', hull:'체력', power:'파워', shield:'쉴드', readyShield:'준비', activeShield:'작동 중', autoFire:'자동 발사', sector:'구간', ki:'기', specialReady:'Q를 떼면 발사', charging:'Q를 누르는 중', specialMissile:'특수 미사일', specialHelp:'Q / 우클릭 누르기 · 떼면 발사', superBomb:'슈퍼밤', superBombReady:'E / 가운데 버튼 · 슈퍼밤 발사', superBombHelp:'슈퍼밤을 먹은 뒤 E, 마우스 가운데 버튼 또는 화면의 E 버튼을 누르면 쉴드와 함께 발사돼요.', superBombFired:'슈퍼밤 발사 · 쉴드 작동',
     pause:'일시정지', paused:'비행 일시정지', pauseDesc:'잠깐 쉬어가세요. 전투는 기다려줄게요.', resume:'계속하기', restart:'다시 시작', returnLobby:'로비로',
     abortTitle:'이번 비행을 중단할까요?', abortBody:'완료하지 않은 전투의 코인, 점수, 미션 진행은 저장되지 않아요.', abandon:'중단하기', cancel:'취소',
     restartTitle:'새로운 비행을 시작할까요?', restartBody:'현재 전투는 취소돼요. 이전에 저장된 기록은 유지돼요.',
@@ -723,7 +729,7 @@
     maxCombo:'최대 콤보', earned:'획득 코인', survived:'비행 시간', defeated:'격파 성공', escaped:'미격파', retry:'다시 도전',
      coinsSaved:'획득 코인이 잔액에 반영됐어요.', noAds:'광고 없음 · 유료 능력치 없음', localOnly:'이 브라우저에만 저장돼요.', rankingLocal:'로컬 종합 랭킹', rankRuns:'모든 전투 기록을 스테이지 점수순으로 정렬해요.',
     help:'비행 매뉴얼', controls:'조작 방법', move:'이동', keyboard:'방향키 / WASD', mouse:'마우스', mouseMove:'게임 영역을 드래그해 이동', drag:'게임 영역을 손가락으로 드래그',
-    shieldHelp:'Space / Shift 또는 쉴드 버튼', pauseHelp:'Escape / P', focusHelp:'키보드가 반응하지 않으면 게임을 한 번 클릭하세요.', responsiveControls:'이동: 마우스 드래그 · 방향키 / WASD · 쉴드: SPACE · 슈퍼밤: E',
+    shieldHelp:'Space / Shift 또는 쉴드 버튼', pauseHelp:'Escape / P', focusHelp:'키보드가 반응하지 않으면 게임을 한 번 클릭하세요.', responsiveControls:'이동: 마우스 드래그 · 방향키 / WASD · 특수 미사일: 우클릭 / Q · 쉴드: SPACE · 슈퍼밤: E / 가운데 버튼 / 화면 터치',
      rules:'전투 안내', rule1:'시간 제한은 없어요. 보스를 격파하면 스테이지가 클리어돼요.',
      rule2:'스테이지를 클리어하면 다음 단계가 열려요. 총 1,000단계이며 점점 어려워져요.',
     rule3:'쉴드는 3초 동안 무적이며, 재사용 대기시간은 20초예요.',
@@ -1551,7 +1557,7 @@
   }
   let itchAuth=loadAuthSession(),oauthWindow=null,oauthState='';
   let globalPersonal={userId:String(itchAuth?.user?.id||''),score:0,cumulativeScore:0,stage:1};
-  const keys=new Set(),P=()=>store.profile;let superBombKeyHeld=false;
+  const keys=new Set(),P=()=>store.profile;let superBombKeyHeld=false,rightMouseQ=false;
   function t(key,args={}){let text=CC.I18N[P().settings.language][key]||CC.I18N.en[key]||key;for(const [k,v]of Object.entries(args))text=text.replaceAll(`{${k}}`,String(v));return text;}
   function authOrigin(){try{return new URL(C.leaderboardEndpoint).origin;}catch(_){return '';}}
   function saveAuthSession(){
@@ -1619,7 +1625,7 @@
   });
   function syncSettings(){audio.settings=P().settings;engine.settings={...P().settings,reducedMotion:P().settings.reducedMotion||autoReduced};document.documentElement.lang=P().settings.language;}
   function saveSettings(key,value){store.transaction(p=>{p.settings[key]=value;return true;});syncSettings();renderHeader();refreshHud(true);}
-  function clearInput(){keys.clear();pointer=null;engine.target=null;superBombKeyHeld=false;}
+  function clearInput(){keys.clear();pointer=null;engine.target=null;superBombKeyHeld=false;rightMouseQ=false;}
   function mobileViewport(){
     const viewport=root.visualViewport,width=Number(viewport?.width)||root.innerWidth,height=Number(viewport?.height)||root.innerHeight;
     const touch=matchMedia('(pointer:coarse)').matches||Number(root.navigator?.maxTouchPoints)>0;
@@ -1830,7 +1836,7 @@
      $('hud-stage-label').textContent=`${t('stage')} ${String(engine.stage).padStart(3,'0')} / ${C.totalStages}`;
      $('hud-difficulty').textContent=`${t('threat')} ×${engine.difficulty.enemy.toFixed(1)}`;
      $('hud-ki').style.width=(p.ki/C.specialMissile.maxKi*100)+'%';$('hud-ki-track').classList.toggle('ready',p.ki>=C.specialMissile.maxKi);
-     const bombReady=p.superBomb>0;$('superbomb-hud').classList.toggle('hidden',!bombReady);$('superbomb-hud').classList.toggle('ready',bombReady);$('hud-superbomb-status').textContent=bombReady?`${t('superBombReady')} · ${p.superBomb}`:'';
+     const bombReady=p.superBomb>0;$('superbomb-hud').classList.toggle('hidden',!bombReady);$('superbomb-hud').classList.toggle('ready',bombReady);$('superbomb-hud').disabled=!bombReady;$('superbomb-hud').setAttribute('aria-label',t('superBombReady'));$('hud-superbomb-status').textContent=bombReady?`${t('superBombReady')} · ${p.superBomb}`:'';
      $('hud-ki-status').textContent=p.ki>=C.specialMissile.maxKi?t('specialReady'):`${t('charging')} ${Math.floor(p.ki)}%`;
     $('hud-coins').textContent=`✦ ${s.coins}`;$('magnet-timer').textContent=p.magnet>0?`${t('magnet')} ${p.magnet.toFixed(1)}s`:'';
     $('game-controls').classList.toggle('left-handed',P().settings.leftHanded);
@@ -1972,6 +1978,14 @@
   function coord(event){const r=$('flight-canvas').getBoundingClientRect();return{x:(event.clientX-r.left)/r.width*C.width,y:(event.clientY-r.top)/r.height*C.height};}
   const canvas=$('flight-canvas');
   canvas.addEventListener('pointerdown',event=>{
+    if(event.button===1){
+      if(view==='flight'&&['playing','tutorial'].includes(engine.state)&&engine.p.superBomb>0){audio.unlock();engine.fireSuperBomb();refreshHud(true);}
+      event.preventDefault();return;
+    }
+    if(event.button===2){
+      if(!rightMouseQ&&['playing','tutorial'].includes(engine.state)){audio.unlock();rightMouseQ=true;try{canvas.setPointerCapture(event.pointerId);}catch(_) {}}
+      event.preventDefault();return;
+    }
     if(pointer||!['playing','tutorial'].includes(engine.state)||event.button>0)return;
     audio.unlock();canvas.focus({preventScroll:true});const p=coord(event);pointer={id:event.pointerId,x:p.x,y:p.y};
     try{canvas.setPointerCapture(event.pointerId);}catch(_){}
@@ -1983,8 +1997,18 @@
     pointer.x=p.x;pointer.y=p.y;event.preventDefault();
   });
   const release=event=>{if(pointer?.id===event.pointerId){pointer=null;engine.target=null;}};
+  const releaseRightClick=event=>{
+    if(!rightMouseQ||!(event.button===2||event.type==='pointercancel'||event.type==='lostpointercapture'))return;
+    rightMouseQ=false;if(!keys.has('KeyQ'))engine.releaseSpecialCharge();event.preventDefault();
+  };
+  canvas.addEventListener('pointerup',releaseRightClick);canvas.addEventListener('pointercancel',releaseRightClick);canvas.addEventListener('lostpointercapture',releaseRightClick);
   canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);canvas.addEventListener('lostpointercapture',release);
   canvas.addEventListener('contextmenu',e=>e.preventDefault());
+  canvas.addEventListener('auxclick',event=>{if(event.button===1)event.preventDefault();});
+  $('superbomb-hud').addEventListener('click',event=>{
+    event.preventDefault();
+    if(view==='flight'&&!event.currentTarget.disabled){audio.unlock();engine.fireSuperBomb();refreshHud(true);}
+  });
   $('rotate-retry').addEventListener('click',()=>{audio.unlock();orientationState.lockRequested=false;requestPortraitOrientation();});
   $('shield-button').addEventListener('pointerdown',event=>{if(!event.currentTarget.disabled){audio.unlock();engine.shield();refreshHud(true);event.preventDefault();}},{passive:false});
   document.addEventListener('keydown',event=>{
@@ -2004,7 +2028,7 @@
     if(event.code==='KeyE'&&engine.p.superBomb>0){event.preventDefault();if(!event.repeat&&!superBombKeyHeld){superBombKeyHeld=true;engine.fireSuperBomb();refreshHud(true);}return;}
      if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','KeyA','KeyD','KeyW','KeyS','KeyQ'].includes(event.code)){event.preventDefault();keys.add(event.code);}
    });
-   document.addEventListener('keyup',event=>{if(event.code==='KeyQ'&&!event.repeat)engine.releaseSpecialCharge();if(event.code==='KeyE')superBombKeyHeld=false;keys.delete(event.code);});
+   document.addEventListener('keyup',event=>{if(event.code==='KeyQ'&&!event.repeat&&!rightMouseQ)engine.releaseSpecialCharge();if(event.code==='KeyE')superBombKeyHeld=false;keys.delete(event.code);});
   function background(){clearInput();if(['playing','tutorial','countdown','resuming'].includes(engine.state))engine.pause();audio.suspend();}
   document.addEventListener('visibilitychange',()=>{if(document.hidden)background();else{lastTime=0;accumulator=0;if(view!=='flight')audio.unlock();}});
   root.addEventListener('blur',background);root.addEventListener('pagehide',()=>store.persist());
@@ -2046,7 +2070,7 @@
           if(engine.state==='playing'&&elapsed>1/29)slowSeconds+=Math.min(elapsed,.15);else slowSeconds=Math.max(0,slowSeconds-elapsed*.5);
           if(slowSeconds>3&&!autoReduced&&!P().settings.reducedMotion){autoReduced=true;syncSettings();translatedToast('lowEffects');}
           accumulator=Math.min(.12,accumulator+Math.min(elapsed,.12));
-           const input={x:Number(keys.has('ArrowRight')||keys.has('KeyD'))-Number(keys.has('ArrowLeft')||keys.has('KeyA')),y:Number(keys.has('ArrowDown')||keys.has('KeyS'))-Number(keys.has('ArrowUp')||keys.has('KeyW')),q:keys.has('KeyQ')};
+           const input={x:Number(keys.has('ArrowRight')||keys.has('KeyD'))-Number(keys.has('ArrowLeft')||keys.has('KeyA')),y:Number(keys.has('ArrowDown')||keys.has('KeyS'))-Number(keys.has('ArrowUp')||keys.has('KeyW')),q:keys.has('KeyQ')||rightMouseQ};
           while(accumulator>=1/120){engine.step(1/120,input);accumulator-=1/120;}
           engine.draw();if(now-hudAt>40){refreshHud();hudAt=now;}
           audio.music(engine.state==='playing',!!engine.boss?.active);
