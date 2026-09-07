@@ -50,6 +50,9 @@
     .global-row .global-score{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
     .global-row .global-score>span{font-size:17px;text-align:right;color:#ffca91;font-weight:650}
     .global-row .global-score small{font-size:8px;font-weight:500;letter-spacing:.4px;color:#a9c9d0;white-space:nowrap}
+    .global-personal{padding:10px 23px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,#203e49,#172f3d)}
+    .global-personal-label{margin-bottom:2px;color:#ffd19d;font-size:10px;font-weight:800;letter-spacing:1.2px}
+    .global-personal .global-row{padding:8px 0;border-bottom:0}
   </style>
   <style id="super-bomb-ui">
     .superbomb-hud{display:flex;align-items:center;gap:9px;margin:9px 18px 0;padding:7px 10px;border:1px solid #ff9b6785;border-radius:7px;background:linear-gradient(90deg,#4c2d2eaa,#203244aa);color:#ffd1a5;box-shadow:0 0 15px #ff895622}
@@ -1556,7 +1559,7 @@
     }catch(_){return null;}
   }
   let itchAuth=loadAuthSession(),oauthWindow=null,oauthState='';
-  let globalPersonal={userId:String(itchAuth?.user?.id||''),score:0,cumulativeScore:0,stage:1};
+  let globalPersonal={userId:String(itchAuth?.user?.id||''),score:0,cumulativeScore:0,stage:1,rank:0};
   const keys=new Set(),P=()=>store.profile;let superBombKeyHeld=false,rightMouseQ=false;
   function t(key,args={}){let text=CC.I18N[P().settings.language][key]||CC.I18N.en[key]||key;for(const [k,v]of Object.entries(args))text=text.replaceAll(`{${k}}`,String(v));return text;}
   function authOrigin(){try{return new URL(C.leaderboardEndpoint).origin;}catch(_){return '';}}
@@ -1570,10 +1573,10 @@
       }else{persistent?.removeItem(AUTH_SESSION_KEY);legacy?.removeItem(AUTH_SESSION_KEY);}
     }catch(_){}
   }
-  function resetGlobalPersonal(){globalPersonal={userId:String(itchAuth?.user?.id||''),score:0,cumulativeScore:0,stage:1};refreshGlobalPersonalUI();}
+  function resetGlobalPersonal(){globalPersonal={userId:String(itchAuth?.user?.id||''),score:0,cumulativeScore:0,stage:1,rank:0};refreshGlobalPersonalUI();}
   function rememberGlobalPersonal(entry){
     const userId=String(itchAuth?.user?.id||'');if(!userId)return;
-    if(globalPersonal.userId!==userId)globalPersonal={userId,score:0,cumulativeScore:0,stage:1};
+    if(globalPersonal.userId!==userId)globalPersonal={userId,score:0,cumulativeScore:0,stage:1,rank:0};
     const score=Number(entry?.totalScore??entry?.total_score??entry?.score);
     if(!Number.isFinite(score)||score<0)return;
     if(score>=globalPersonal.score){
@@ -1581,6 +1584,8 @@
       globalPersonal.cumulativeScore=K.int(Number(entry?.cumulativeScore??entry?.cumulative_score??0),C.score.totalCap);
       globalPersonal.stage=K.clamp(K.int(Number(entry?.stage),C.totalStages)||1,1,C.totalStages);
     }
+    const rank=Number(entry?.rank);
+    if(Number.isInteger(rank)&&rank>0)globalPersonal.rank=rank;
     refreshGlobalPersonalUI();
   }
   function personalGlobalScore(){
@@ -1694,14 +1699,23 @@
       return `<article class="ship-card ${selected?'selected':''}"><div class="ship-card-top"><span class="ship-code">${s.code}</span><span class="ship-status">${icon(selected?'check':owned?'plane':'lock')}${t(selected?'equipped':owned?'owned':'locked')}</span></div><canvas class="ship-preview" data-ship="${s.id}" aria-hidden="true"></canvas><h2>${s.name}</h2><div class="ship-type">${t(s.id+'Type')}</div><p>${t(s.id+'Desc')}</p><div class="ship-stats">${['firepower','armor','handling'].map(k=>`<div class="ship-stat"><span>${t(k)}</span><div class="stat-bars"><i></i><i></i><i></i><i></i><i></i></div></div>`).join('')}</div><button class="${owned?'secondary-button':'primary-button'}" data-action="${owned?'equip':'buy'}" data-id="${s.id}" ${selected?'disabled':''}>${t(selected?'equipped':owned?'equip':'unlock')}${!owned?`<b>✦ ${number(s.price)}</b>`:selected?icon('check'):icon('arrow')}</button></article>`;
     }).join('')}</div>`;
    }
-   function globalLeaderboardHTML(){
-     let body='';
+  function globalRankingRow(r,i){
+     const stage=K.clamp(K.int(r.stage,C.totalStages)||1,1,C.totalStages),cumulative=K.int(Number(r.cumulativeScore??r.score),C.score.totalCap),rank=Number(r.rank)>0?Number(r.rank):i+1;
+     return `<div class="global-row"><span class="global-rank">#${rank}</span><span class="global-name">${escape(r.name||'PILOT')}${r.itchUsername?`<small>@${escape(r.itchUsername)}</small>`:''}</span><span class="global-stage"><small>${t('stage')}</small><strong>${String(stage).padStart(3,'0')}</strong></span><strong class="global-score"><span>${number(r.score)}</span><small>${String(stage).padStart(3,'0')} × ${number(cumulative)}</small></strong></div>`;
+  }
+  function globalLeaderboardHTML(){
+     let body='',personal='';
+     const publicRows=globalBoard.rows.slice(0,100),personalRank=Number(globalPersonal.rank),showPersonal=Boolean(itchAuth?.user&&personalRank>100&&globalPersonal.score>0);
+     if(showPersonal){
+       const user=itchAuth.user;
+       personal=`<div class="global-personal"><div class="global-personal-label">${P().settings.language==='ko'?'공개 상위 100위 밖의 개인 순위':'PRIVATE RANK · OUTSIDE TOP 100'}</div>${globalRankingRow({name:P().pilotName||'PILOT',itchUsername:user.username||user.displayName||user.id,score:globalPersonal.score,cumulativeScore:globalPersonal.cumulativeScore,stage:globalPersonal.stage,rank:personalRank},0)}</div>`;
+     }
      if(globalBoard.status==='loading')body=`<div class="global-status">${t('globalLoading')}</div>`;
      else if(globalBoard.status==='offline')body=`<div class="global-status"><strong>${t('globalOffline')}</strong>${t('globalOfflineNote')}<br><small>${t('globalNote')}</small></div>`;
      else if(globalBoard.status==='error')body=`<div class="global-status"><strong>${t('globalOffline')}</strong>${escape(globalBoard.error||t('globalOfflineNote'))}<br><button class="secondary-button" data-action="global-refresh">${t('globalRetry')}</button></div>`;
-     else if(!globalBoard.rows.length)body=`<div class="global-status">${t('globalEmpty')}<br><button class="secondary-button" data-action="global-refresh">${t('globalRetry')}</button></div>`;
-     else body=`<div class="global-list">${globalBoard.rows.slice(0,50).map((r,i)=>{const stage=K.clamp(K.int(r.stage,C.totalStages)||1,1,C.totalStages),cumulative=K.int(Number(r.cumulativeScore??r.score),C.score.totalCap);return `<div class="global-row"><span class="global-rank">#${Number(r.rank)||i+1}</span><span class="global-name">${escape(r.name||'PILOT')}${r.itchUsername?`<small>@${escape(r.itchUsername)}</small>`:''}</span><span class="global-stage"><small>${t('stage')}</small><strong>${String(stage).padStart(3,'0')}</strong></span><strong class="global-score"><span>${number(r.score)}</span><small>${String(stage).padStart(3,'0')} × ${number(cumulative)}</small></strong></div>`;}).join('')}</div>`;
-     return `<section class="global-panel"><div class="global-panel-head"><div><h2>${t('globalRanking')}</h2><small>${t('globalNote')}</small></div>${globalBoard.status==='ready'?`<button class="secondary-button" data-action="global-refresh">${t('globalRetry')}</button>`:''}</div>${body}</section>`;
+     else if(!publicRows.length)body=`<div class="global-status">${t('globalEmpty')}<br><button class="secondary-button" data-action="global-refresh">${t('globalRetry')}</button></div>`;
+     else body=`<div class="global-list">${publicRows.map(globalRankingRow).join('')}</div>`;
+     return `<section class="global-panel"><div class="global-panel-head"><div><h2>${t('globalRanking')}</h2><small>${t('globalNote')}</small></div>${globalBoard.status==='ready'?`<button class="secondary-button" data-action="global-refresh">${t('globalRetry')}</button>`:''}</div>${personal}${body}</section>`;
    }
    function connectItch(){
      const origin=authOrigin();

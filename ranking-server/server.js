@@ -164,6 +164,7 @@ function entry(row) {
     totalScore,
     cumulativeScore,
     stage: Number(row.stage),
+    rank: row.rank == null ? null : Number(row.rank),
     runs: Number(row.runs),
     clearedRuns: Number(row.cleared_runs),
     updatedAt: row.updated_at
@@ -201,9 +202,16 @@ app.get('/api/ranking', async (req, res) => {
       const mine = await pool.query(`
         SELECT player_id, name, pilot_name, itch_user_id, itch_username,
                cumulative_score::float8 AS cumulative_score,
-               total_score::float8 AS total_score, stage, runs, cleared_runs, updated_at
-        FROM ranking_players
-        WHERE player_id = $1
+               total_score::float8 AS total_score, stage, runs, cleared_runs, updated_at,
+               (
+                 SELECT COUNT(*) + 1
+                 FROM ranking_players AS above
+                 WHERE above.total_score > player.total_score
+                    OR (above.total_score = player.total_score AND above.updated_at < player.updated_at)
+                    OR (above.total_score = player.total_score AND above.updated_at = player.updated_at AND above.player_id < player.player_id)
+               )::int AS rank
+        FROM ranking_players AS player
+        WHERE player.player_id = $1
       `, [`itch-${user.id}`]);
       return res.json({ rows, me: mine.rowCount ? entry(mine.rows[0]) : null });
     }
