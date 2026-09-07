@@ -129,6 +129,11 @@
     #right-flight-panel>.aside-stat>strong{font-size:12px}
   }
 </style>
+<style id="mobile-orientation-ui">
+  .rotate-notice .rotate-retry{min-width:190px;min-height:48px;margin-top:22px;font-size:11px}
+  @media(max-width:380px){.rotate-notice{padding:22px 18px}.rotate-notice h2{font-size:21px}.rotate-notice p{font-size:11px}.rotate-notice .rotate-retry{min-width:180px}}
+  @media(pointer:coarse) and (orientation:portrait) and (max-width:720px){#rotate-notice{display:none!important}}
+</style>
 </head>
 <body>
   <div id="boot">CRAZY COMBAT <span>Initializing flight systems…</span></div>
@@ -184,7 +189,7 @@
   </div>
   <div id="modal-root" class="modal-root hidden"></div>
   <div id="toast" class="toast hidden" role="status"></div>
-  <div id="rotate-notice" class="rotate-notice hidden"><div class="rotate-icon">↻</div><h2 data-i18n="rotate">Rotate for takeoff.</h2><p data-i18n="rotateDesc">Turn your phone upright to continue.</p></div>
+  <div id="rotate-notice" class="rotate-notice hidden"><div class="rotate-icon">↻</div><h2 data-i18n="rotate">Rotate for takeoff.</h2><p data-i18n="rotateDesc">Turn your phone upright to continue.</p><button id="rotate-retry" class="primary-button" type="button">TRY PORTRAIT MODE</button></div>
   <div id="announcement" class="sr-only" aria-live="polite"></div>
   <input id="import-input" type="file" accept=".json,application/json" hidden>
   <script>
@@ -1463,6 +1468,7 @@
   const store=new K.Store(storage,browserLang),audio=new CC.AudioEngine();
   let view='lobby',modalStack=[],toastTimer=0,lastFocused=null,previews=[],lastTime=0,accumulator=0,hudAt=0,previewAt=0,slowSeconds=0,autoReduced=false;
    let tutorialAfter=true,pointer=null,pendingImport=null,animationStart=0,lastDay=K.dateKey(),lastHud={};
+   const orientationState={landscape:false,pausedByOrientation:false,lockRequested:false,locked:false,autoFullscreen:false};
    let globalBoard={status:C.leaderboardEndpoint?'idle':'offline',rows:[],error:''};
   const AUTH_SESSION_KEY='cc_itch_session_v1';
   function authStorage(){try{return root.localStorage||null;}catch(_){return null;}}
@@ -1555,6 +1561,33 @@
   function syncSettings(){audio.settings=P().settings;engine.settings={...P().settings,reducedMotion:P().settings.reducedMotion||autoReduced};document.documentElement.lang=P().settings.language;}
   function saveSettings(key,value){store.transaction(p=>{p.settings[key]=value;return true;});syncSettings();renderHeader();refreshHud(true);}
   function clearInput(){keys.clear();pointer=null;engine.target=null;superBombKeyHeld=false;}
+  function mobileViewport(){
+    const viewport=root.visualViewport,width=Number(viewport?.width)||root.innerWidth,height=Number(viewport?.height)||root.innerHeight;
+    const touch=matchMedia('(pointer:coarse)').matches||Number(root.navigator?.maxTouchPoints)>0;
+    return {width,height,isMobile:touch&&Math.min(width,height)<=720};
+  }
+  function isLandscapeMobile(){const {width,height,isMobile}=mobileViewport();return isMobile&&width>height;}
+  function releasePortraitMode(){
+    try{root.screen?.orientation?.unlock?.();}catch(_){}
+    if(orientationState.autoFullscreen&&document.fullscreenElement&&document.exitFullscreen){document.exitFullscreen().catch(()=>{});}
+    orientationState.landscape=false;orientationState.pausedByOrientation=false;orientationState.lockRequested=false;orientationState.locked=false;orientationState.autoFullscreen=false;
+  }
+  async function requestPortraitOrientation(){
+    if(view!=='flight'||!isLandscapeMobile()||orientationState.lockRequested)return;
+    orientationState.lockRequested=true;
+    const orientation=root.screen?.orientation,lock=orientation?.lock?.bind(orientation);
+    if(typeof lock!=='function'){resize();return;}
+    let enteredFullscreen=false;
+    try{
+      if(!document.fullscreenElement&&document.documentElement.requestFullscreen){
+        try{await document.documentElement.requestFullscreen({navigationUI:'hide'});enteredFullscreen=true;orientationState.autoFullscreen=true;}catch(_){}
+      }
+      await lock('portrait');orientationState.locked=true;
+    }catch(_){
+      if(enteredFullscreen&&document.fullscreenElement&&document.exitFullscreen){try{await document.exitFullscreen();}catch(_){};orientationState.autoFullscreen=false;}
+      try{await lock('portrait');orientationState.locked=true;}catch(_){}
+    }finally{resize();}
+  }
   function renderHeader(){
     const badge=$('storage-badge');badge.classList.toggle('memory',!store.persistent);badge.querySelector('span').textContent=itchAuth?.user?t('globalLinked'):C.leaderboardEndpoint?t('globalLinkRequired'):t(store.persistent?'local':'memory');
     $('lang-button').textContent=P().settings.language.toUpperCase();$('lang-button').setAttribute('aria-label',P().settings.language==='en'?'한국어로 변경':'Switch to English');
@@ -1688,6 +1721,7 @@
   }
   function showView(next){
     if(next!=='flight'&&['playing','countdown','tutorial','paused','resuming'].includes(engine.state))engine.abort();
+    if(next!=='flight'&&(orientationState.lockRequested||orientationState.locked||orientationState.autoFullscreen))releasePortraitMode();
     clearModals();root.scrollTo({top:0,behavior:'instant'});view=next;document.body.classList.toggle('in-flight',next==='flight');
     $('menu').classList.toggle('hidden',next==='flight');$('game-screen').classList.toggle('hidden',next!=='flight');
     if(next==='flight'){renderFlightPanels();resize();}else{renderMenu();root.scrollTo({top:0,behavior:'instant'});}
@@ -1711,7 +1745,7 @@
   }
   function enterFlight(training=false,after=true){
     if(['playing','countdown','tutorial','resuming'].includes(engine.state))return;
-    clearModals();audio.unlock();syncSettings();showView('flight');tutorialAfter=after;lastHud={};
+    clearModals();audio.unlock();syncSettings();showView('flight');requestPortraitOrientation();tutorialAfter=after;lastHud={};
     if(training||!P().tutorialCompleted)engine.tutorial(P().equippedPlaneId,P().settings);
     else engine.start(P().equippedPlaneId,P().settings,P().currentStage,P().currentPower);
     syncSettings();resize();engine.draw();$('flight-canvas').focus({preventScroll:true});refreshHud(true);requestAnimationFrame(resize);
@@ -1809,7 +1843,7 @@
   }
   async function fullscreen(){
     audio.unlock();
-    try{if(document.fullscreenElement)await document.exitFullscreen();else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();else throw new Error();}
+    try{if(document.fullscreenElement){orientationState.autoFullscreen=false;await document.exitFullscreen();}else if(document.documentElement.requestFullscreen){await document.documentElement.requestFullscreen();orientationState.autoFullscreen=false;}else throw new Error();}
     catch(_){translatedToast('fullscreenUnavailable');}
   }
   function changeLanguage(lang){saveSettings('language',lang);if(view==='flight'){renderFlightPanels();renderTraining(engine.tutorialStep||0);}else renderMenu();if(modalStack.length)renderModal();refreshHud(true);}
@@ -1892,6 +1926,7 @@
   const release=event=>{if(pointer?.id===event.pointerId){pointer=null;engine.target=null;}};
   canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);canvas.addEventListener('lostpointercapture',release);
   canvas.addEventListener('contextmenu',e=>e.preventDefault());
+  $('rotate-retry').addEventListener('click',()=>{audio.unlock();orientationState.lockRequested=false;requestPortraitOrientation();});
   $('shield-button').addEventListener('pointerdown',event=>{if(!event.currentTarget.disabled){audio.unlock();engine.shield();refreshHud(true);event.preventDefault();}},{passive:false});
   document.addEventListener('keydown',event=>{
     if(topModal()){
@@ -1927,13 +1962,22 @@
       // allowing the page to scroll when the viewport is shorter than the field.
       const width=Math.max(120,Math.min(540,availableW,availableH*9/16));
       field.style.setProperty('--game-field-width',width+'px');field.style.width=width+'px';field.style.height=width*16/9+'px';engine.resize();
-      // Portrait is preserved by letterboxing, not an unsupported browser orientation lock.
-      const landscapePhone=matchMedia('(pointer:coarse)').matches&&root.innerWidth>root.innerHeight&&root.innerHeight<480;
-      $('rotate-notice').classList.toggle('hidden',!landscapePhone);if(landscapePhone)engine.pause();
+      const landscapePhone=isLandscapeMobile(),rotateNotice=$('rotate-notice');
+      rotateNotice.classList.toggle('hidden',!landscapePhone);
+      if(landscapePhone){
+        if(!orientationState.landscape){
+          orientationState.landscape=true;
+          if(['playing','countdown','tutorial','resuming'].includes(engine.state)){engine.pause();orientationState.pausedByOrientation=true;}
+        }
+      }else{
+        if(orientationState.landscape&&orientationState.pausedByOrientation&&engine.state==='paused'){orientationState.pausedByOrientation=false;engine.resume();}
+        orientationState.landscape=false;
+      }
     }else $('rotate-notice').classList.add('hidden');
     drawPreviews(0);
   }
-  root.addEventListener('resize',resize);document.addEventListener('fullscreenchange',resize);
+  root.addEventListener('resize',resize);document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement)orientationState.autoFullscreen=false;resize();});
+  root.screen?.orientation?.addEventListener?.('change',resize);
   root.visualViewport?.addEventListener('resize',resize);
   function loop(now){
     try{
