@@ -2019,9 +2019,10 @@
   }
   function exitGame(){
     clearInput();clearModals();engine.abort();releasePortraitMode();
+    try{root.close();}catch(_){}
+    if(root.closed)return;
     if(root.history.length>1){root.history.back();return;}
-    if(root.opener&&!root.opener.closed){try{root.close();}catch(_){}if(root.closed)return;}
-    try{root.location.replace('about:blank');}catch(_){try{root.location.href='about:blank';}catch(_){}}
+    translatedToast('exitUnavailable',{},7000);
   }
   function changeLanguage(lang){saveSettings('language',lang);if(view==='flight'){renderFlightPanels();renderTraining(engine.tutorialStep||0);}else renderMenu();if(modalStack.length)renderModal();refreshHud(true);}
   function action(name,button){
