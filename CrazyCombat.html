@@ -228,6 +228,23 @@
     body:not(.in-flight) .nav-buttons .secondary-button{font-size:8px}
   }
 </style>
+<style id="mobile-back-button-ui">
+  .mobile-back-button{display:none}
+  @media(max-width:720px), (pointer:coarse) and (orientation:portrait) and (max-width:900px){
+    body:not(.in-flight) .masthead{justify-content:flex-start;gap:7px}
+    body:not(.in-flight) .mobile-back-button{display:grid;place-content:center;flex:0 0 40px;width:40px;height:40px;border:1px solid #40596a;border-radius:10px;background:#14283a;color:#bcd4d9}
+    body:not(.in-flight) .mobile-back-button:active{background:#1e3b4d;color:#f1d5a0}
+    body:not(.in-flight) .mobile-back-button svg{width:19px;height:19px}
+    body:not(.in-flight) .brand{min-width:0;flex:1}
+    body:not(.in-flight) .brand>span{font-size:11px;letter-spacing:2px}
+    body:not(.in-flight) .header-tools{flex:0 0 auto}
+  }
+  @media(max-width:380px){
+    body:not(.in-flight) .mobile-back-button{flex-basis:36px;width:36px;height:36px}
+    body:not(.in-flight) .mobile-back-button svg{width:17px;height:17px}
+    body:not(.in-flight) .masthead{gap:5px}
+  }
+</style>
 <style id="mobile-input-ui">
   .superbomb-hud{width:max-content;max-width:calc(100% - 36px);margin-left:auto;pointer-events:auto;cursor:pointer;touch-action:manipulation;user-select:none;text-align:left}
   .superbomb-hud:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
@@ -240,6 +257,7 @@
   <noscript><div class="fatal-message">Crazy Combat needs JavaScript to run. Please enable it in your browser.</div></noscript>
   <div id="shell" class="shell">
     <header class="masthead">
+      <button id="mobile-back-button" class="mobile-back-button hidden" data-action="mobile-back" aria-label="Back" type="button"></button>
       <button class="brand" data-action="home" aria-label="Crazy Combat home">
         <svg class="brand-mark" viewBox="0 0 44 44" aria-hidden="true"><path d="M22 3 4 34l14-5 4 12 4-12 14 5Z" fill="currentColor"/><path d="m22 11-3 12 3 5 3-5Z" fill="#ff965e"/></svg>
         <span>CRAZY<span class="brand-combat">COMBAT</span></span>
@@ -1704,6 +1722,7 @@
     $('footer-edition').textContent=t('version');$('footer-note').textContent=t('noAds');$('footer-privacy').textContent=t('privacy');
     document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));
      const responsiveHint=$('flight-responsive-hint');if(responsiveHint)responsiveHint.textContent=t('responsiveControls');
+     const mobileBack=$('mobile-back-button');if(mobileBack){mobileBack.innerHTML=icon('back');const showBack=view!=='flight';mobileBack.classList.toggle('hidden',!showBack);mobileBack.dataset.action=view==='lobby'?'exit':'home';mobileBack.setAttribute('aria-label',view==='lobby'?t('exit'):t('back'));}
      const homeExit=$('home-exit-button');if(homeExit){homeExit.classList.toggle('hidden',view!=='lobby');homeExit.setAttribute('aria-label',t('exit'));}
      $('flight-canvas').setAttribute('aria-label',`${t('controls')}. ${t('keyboard')}. ${t('mouseMove')}. ${t('shieldHelp')}. ${t('superBombHelp')}. ${t('pauseHelp')}.`);
   }
@@ -2038,6 +2057,8 @@
          }else {recordsReturn=null;if(engine.state==='result')engine.abort();showView('lobby');}break;
        case 'exit':
           exitGame();break;
+       case 'mobile-back':
+          if(view==='lobby')exitGame();else action('home',button);break;
        case 'hangar':showView('hangar');break;
        case 'records':{const resultModal=topModal();recordsReturn=resultModal?.type==='result'?{result:resultModal.result,isBest:!!resultModal.isBest}:null;showView('records');break;}
       case 'share-score':shareScore(topModal()?.result||engine.result);break;
