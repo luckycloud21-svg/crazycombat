@@ -134,11 +134,16 @@
   }
   @media (pointer:coarse) and (orientation:portrait) and (max-width:900px){
     .game-controls{inset:0;height:auto;align-items:flex-end;background:linear-gradient(transparent 68%,#09182cd9);padding-left:max(9px,env(safe-area-inset-left));padding-right:max(9px,env(safe-area-inset-right));padding-bottom:max(10px,env(safe-area-inset-bottom))}
-    .game-controls .pause-button{position:absolute;top:auto;bottom:clamp(92px,14%,126px);left:max(10px,env(safe-area-inset-left));z-index:2}
+    .game-controls .pause-button{position:absolute;top:auto;bottom:clamp(126px,18%,158px);left:max(10px,env(safe-area-inset-left));z-index:2}
     .field-footer{flex:1;max-width:none;min-width:0}
     .special-button{display:flex;order:1}
     .field-footer{order:2}
     .shield-button{order:3}
+    #superbomb-hud{position:absolute;top:50%;right:max(9px,env(safe-area-inset-right));z-index:7;display:flex;flex-direction:column;align-items:center;justify-content:center;width:70px;height:70px;margin:0;padding:6px 4px;gap:2px;border-radius:50%;pointer-events:auto;touch-action:manipulation;transform:translateY(-50%)}
+    #superbomb-hud .superbomb-key{width:22px;height:21px;font-size:10px}
+    #superbomb-hud div{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0}
+    #superbomb-hud div>span{font-size:8px;letter-spacing:.4px}
+    #superbomb-hud strong{font-size:8px;letter-spacing:.2px}
   }
   @media(max-width:380px){
     .flight-responsive-hint{font-size:9px;letter-spacing:0}
@@ -149,6 +154,7 @@
     .pause-button{width:42px;height:42px}
     .special-button{width:62px;height:62px}
     .shield-button{width:66px;height:66px}
+    #superbomb-hud{width:64px;height:64px;right:7px}
     .special-button b{font-size:7px;letter-spacing:.2px}
     .special-button small{font-size:7px}
   }
@@ -158,7 +164,12 @@
   @media(max-width:380px){.rotate-notice{padding:22px 18px}.rotate-notice h2{font-size:21px}.rotate-notice p{font-size:11px}.rotate-notice .rotate-retry{min-width:180px}}
   @media(pointer:coarse) and (orientation:portrait) and (max-width:720px){#rotate-notice{display:none!important}}
 </style>
-  <style id="mobile-lobby-layout">
+<style id="share-score-ui">
+  .result-secondary .share-score-button{grid-column:1/-1;color:#b9e9e2;border-color:#4b7477;background:#17343d}
+  .result-secondary .share-score-button:hover{background:#1e4650;border-color:#78bbb6}
+  .result-secondary .share-score-button svg{color:#9ce2d8}
+</style>
+<style id="mobile-lobby-layout">
   @media(max-width:720px), (pointer:coarse) and (orientation:portrait) and (max-width:900px){
     body:not(.in-flight) .masthead{height:70px;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
     body:not(.in-flight) .menu{padding-top:14px;min-height:0}
@@ -692,6 +703,7 @@
      bossWarning:'BOSS INBOUND', bossName:'DREADNOUGHT', bossDown:'BOSS DESTROYED', enrage:'OVERDRIVE', aim:'TARGET LOCK', radial:'RADIAL BURST', sweep:'SWEEP', kiFull:'KI FULL — RELEASE Q', stageClear:'STAGE CLEAR', finalStage:'FINAL STAGE', nextStage:'NEXT STAGE',
     survival:'SURVIVAL BONUS', timeBonus:'TIME BONUS', hullBonus:'HULL BONUS', combatScore:'COMBAT', starScore:'STARS', complete:'MISSION COMPLETE', lost:'SIGNAL LOST',
      completeSub:'Boss down. The next stage is unlocked.', lostSub:'Regroup. Reload. Go again.', newBest:'NEW PERSONAL BEST', finalScore:'FINAL SCORE',
+     shareScore:'SHARE SCORE', shareTitle:'My Crazy Combat score', shareTextClear:'I cleared Stage {stage} in Crazy Combat with {score} points. Can you beat it?', shareTextLost:'I scored {score} in Crazy Combat on Stage {stage}. Can you beat it?', shareCopied:'Score and link copied. Share it with your friends!', shareDone:'Score shared.', shareUnavailable:'Unable to share right now.',
     maxCombo:'MAX COMBO', earned:'COINS EARNED', survived:'FLIGHT TIME', defeated:'DESTROYED', escaped:'NOT DESTROYED', retry:'FLY AGAIN',
      coinsSaved:'Coins already added to your balance.', noAds:'No ads. No paid stat boosts.', localOnly:'Settings and offline records stay on this browser.', rankingLocal:'LOCAL OVERALL RANKING', rankRuns:'Ranked by stage score across all of your runs.',
      help:'FLIGHT MANUAL', controls:'CONTROLS', move:'MOVE', keyboard:'Arrow keys / WASD', mouse:'MOUSE', mouseMove:'Drag the playfield to move', drag:'Drag anywhere in the playfield', mobileSpecial:'SPECIAL',
@@ -1550,7 +1562,7 @@
     close:'<path d="m6 6 12 12M18 6 6 18"/>',
     check:'<path d="m5 12 4 4L19 6"/>', lock:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/>',
     coin:'<path d="m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z"/>',
-    power:'<path d="m13 2-8 12h6l-1 8 9-13h-7Z"/>',
+     power:'<path d="m13 2-8 12h6l-1 8 9-13h-7Z"/>', share:'<circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 10.8 7.6-4.3m-7.6 6.7 7.6 4.3"/>',
     download:'<path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/>',
     upload:'<path d="M12 16V4m-5 5 5-5 5 5M4 16v5h16v-5"/>'
   };
@@ -1901,6 +1913,7 @@
      if($('aside-stage'))$('aside-stage').textContent=`${String(engine.stage).padStart(3,'0')} / ${C.totalStages}`;if($('aside-kills'))$('aside-kills').textContent=s.kills;if($('aside-combo'))$('aside-combo').textContent=s.maxCombo;
     const bars=$('threat-bars');if(bars)bars.querySelectorAll('i').forEach((el,i)=>el.classList.toggle('active',i<=Math.floor(engine.elapsed/10)));
   }
+  Object.assign(ko,{shareScore:'점수 공유',shareTitle:'Crazy Combat 내 점수',shareTextClear:'Crazy Combat 스테이지 {stage}를 클리어하고 {score}점을 기록했어요. 내 기록을 넘어보세요!',shareTextLost:'Crazy Combat 스테이지 {stage}에서 {score}점을 기록했어요. 내 기록을 넘어보세요!',shareCopied:'점수와 링크를 복사했어요. 친구에게 공유해보세요!',shareDone:'점수를 공유했어요.',shareUnavailable:'지금은 공유할 수 없어요.'});
   function topModal(){return modalStack[modalStack.length-1];}
   function openModal(modal){if(!modalStack.length)lastFocused=document.activeElement;modalStack.push(modal);renderModal();}
   function clearModals(){modalStack=[];$('modal-root').classList.add('hidden');$('modal-root').innerHTML='';$('shell').inert=false;}
@@ -1919,7 +1932,7 @@
   }
   function resultHTML(m){
     const r=m.result,b=r.breakdown;
-     return `<div class="result-emblem">${icon(r.cleared?'trophy':'plane')}</div><div class="eyebrow">${t('finalScore')} / ${r.duration.toFixed(1)}s</div><h2 id="modal-title">${t(r.cleared?'complete':'lost')}</h2><p>${t(r.cleared?'completeSub':'lostSub')}</p><div class="result-stage"><span>${t('stage')} <b>${String(r.stage||1).padStart(3,'0')} / ${C.totalStages}</b></span>${r.cleared?`<span>→ ${r.stage>=C.totalStages?t('finalStage'):`${t('nextStage')} ${String(Math.min(C.totalStages,r.stage+1)).padStart(3,'0')}`}</span>`:''}</div><div id="result-score" class="result-score">${number(r.score)}</div><div class="micro">${t('overallScore')} / ${number(P().overallScore)}</div>${m.isBest?`<span class="new-best">${icon('trophy')}${t('newBest')}</span>`:`<span class="micro">${t('best')} / ${number(P().bestScore)}</span>`}<div class="score-breakdown">${[['combatScore',b.combat],['starScore',b.coins],['timeBonus',b.time],['survival',b.survival],['hullBonus',b.health]].map(([k,n])=>`<div><span>${t(k)}</span><strong>${number(n)}</strong></div>`).join('')}</div><div class="result-stats"><div><span>${t('kills')}</span><strong>${r.kills}</strong></div><div><span>${t('maxCombo')}</span><strong>${r.maxCombo}</strong></div><div><span>${t('earned')}</span><strong class="gold">+${r.coins}</strong></div></div><div class="result-details"><span>BOSS / <b>${t(r.bossKilled?'defeated':'escaped')}</b></span><span>${t('specialMissile')} / <b>${r.specialMissiles||0}</b></span><span>POWER / <b>${r.maxPower} / 5</b></span></div><div class="stacked-actions"><button class="primary-button" data-action="retry">${r.cleared?t('nextStage'):t('retry')}${icon('arrow')}</button><div class="result-secondary"><button class="secondary-button" data-action="home">${t('returnLobby')}</button><button class="secondary-button" data-action="records">${t('records')}</button></div></div><p class="result-note">${t('coinsSaved')} ${t('localOnly')}</p>`;
+     return `<div class="result-emblem">${icon(r.cleared?'trophy':'plane')}</div><div class="eyebrow">${t('finalScore')} / ${r.duration.toFixed(1)}s</div><h2 id="modal-title">${t(r.cleared?'complete':'lost')}</h2><p>${t(r.cleared?'completeSub':'lostSub')}</p><div class="result-stage"><span>${t('stage')} <b>${String(r.stage||1).padStart(3,'0')} / ${C.totalStages}</b></span>${r.cleared?`<span>→ ${r.stage>=C.totalStages?t('finalStage'):`${t('nextStage')} ${String(Math.min(C.totalStages,r.stage+1)).padStart(3,'0')}`}</span>`:''}</div><div id="result-score" class="result-score">${number(r.score)}</div><div class="micro">${t('overallScore')} / ${number(P().overallScore)}</div>${m.isBest?`<span class="new-best">${icon('trophy')}${t('newBest')}</span>`:`<span class="micro">${t('best')} / ${number(P().bestScore)}</span>`}<div class="score-breakdown">${[['combatScore',b.combat],['starScore',b.coins],['timeBonus',b.time],['survival',b.survival],['hullBonus',b.health]].map(([k,n])=>`<div><span>${t(k)}</span><strong>${number(n)}</strong></div>`).join('')}</div><div class="result-stats"><div><span>${t('kills')}</span><strong>${r.kills}</strong></div><div><span>${t('maxCombo')}</span><strong>${r.maxCombo}</strong></div><div><span>${t('earned')}</span><strong class="gold">+${r.coins}</strong></div></div><div class="result-details"><span>BOSS / <b>${t(r.bossKilled?'defeated':'escaped')}</b></span><span>${t('specialMissile')} / <b>${r.specialMissiles||0}</b></span><span>POWER / <b>${r.maxPower} / 5</b></span></div><div class="stacked-actions"><button class="primary-button" data-action="retry">${r.cleared?t('nextStage'):t('retry')}${icon('arrow')}</button><div class="result-secondary"><button class="secondary-button" data-action="home">${t('returnLobby')}</button><button class="secondary-button" data-action="records">${t('records')}</button><button class="secondary-button share-score-button" data-action="share-score">${icon('share')}${t('shareScore')}</button></div></div><p class="result-note">${t('coinsSaved')} ${t('localOnly')}</p>`;
   }
   function renderModal(){
     const m=topModal();if(!m)return clearModals();
@@ -1959,8 +1972,36 @@
     try{if(document.fullscreenElement){orientationState.autoFullscreen=false;await document.exitFullscreen();}else if(document.documentElement.requestFullscreen){await document.documentElement.requestFullscreen();orientationState.autoFullscreen=false;}else throw new Error();}
     catch(_){translatedToast('fullscreenUnavailable');}
   }
+  async function shareScore(result){
+    const r=result||topModal()?.result||engine.result;
+    if(!r)return;
+    const stage=String(r.stage||1).padStart(3,'0');
+    const score=number(r.score);
+    const text=t(r.cleared?'shareTextClear':'shareTextLost',{stage,score});
+    const url=typeof root.location?.href==='string'&&/^https?:/i.test(root.location.href)?root.location.href:'';
+    try{
+      if(typeof root.navigator?.share==='function'){
+        await root.navigator.share({title:t('shareTitle'),text,url});
+        translatedToast('shareDone',{},3000);
+        return;
+      }
+    }catch(error){
+      if(error?.name==='AbortError')return;
+    }
+    const copyText=[text,url].filter(Boolean).join('\n');
+    try{
+      if(root.navigator?.clipboard?.writeText)await root.navigator.clipboard.writeText(copyText);
+      else{
+        const area=document.createElement('textarea');
+        area.value=copyText;area.setAttribute('readonly','');area.style.position='fixed';area.style.opacity='0';
+        document.body.append(area);area.select();document.execCommand('copy');area.remove();
+      }
+      translatedToast('shareCopied',{},5000);
+    }catch(_){translatedToast('shareUnavailable',{},5000);}
+  }
   function exitGame(){
     clearInput();clearModals();engine.abort();releasePortraitMode();
+    if(root.history.length>1){root.history.back();return;}
     if(root.opener&&!root.opener.closed){try{root.close();}catch(_){}if(root.closed)return;}
     try{root.location.replace('about:blank');}catch(_){try{root.location.href='about:blank';}catch(_){}}
   }
@@ -1980,6 +2021,7 @@
           exitGame();break;
        case 'hangar':showView('hangar');break;
        case 'records':{const resultModal=topModal();recordsReturn=resultModal?.type==='result'?{result:resultModal.result,isBest:!!resultModal.isBest}:null;showView('records');break;}
+      case 'share-score':shareScore(topModal()?.result||engine.result);break;
        case 'resume-records':{const returnState=recordsReturn;recordsReturn=null;if(returnState?.result){showView('flight');openModal({type:'result',result:returnState.result,isBest:returnState.isBest});}else showView('lobby');break;}
       case 'global-refresh':loadGlobalLeaderboard();break;
       case 'settings':ensurePause();openModal({type:'settings'});break;
