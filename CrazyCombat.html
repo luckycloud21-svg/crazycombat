@@ -305,6 +305,7 @@
     // HTTPS JSON endpoint: GET returns cumulative player totals; POST adds one run score.
     // It can be supplied by the host page or with ?leaderboard=https%3A%2F%2F… .
     leaderboardEndpoint: root.CRAZY_COMBAT_LEADERBOARD_ENDPOINT || (root.location?.search ? new URLSearchParams(root.location.search).get('leaderboard') || '' : '') || 'https://crazycombat.onrender.com/api/ranking',
+    shareUrl: 'https://luckycloud21.itch.io/crazy-combat',
     width: 432, height: 768, runSeconds: null, bossSpawnSeconds: 50,
     player: { hp: 3, maxHp: 3, radius: 10, speed: 335, hitInvincible: 1, shieldSeconds: 3, shieldCooldown: 20, maxPower: 5 },
     // The first weapon level needs two clean hits on a stage-one scout. Higher
@@ -703,7 +704,7 @@
      bossWarning:'BOSS INBOUND', bossName:'DREADNOUGHT', bossDown:'BOSS DESTROYED', enrage:'OVERDRIVE', aim:'TARGET LOCK', radial:'RADIAL BURST', sweep:'SWEEP', kiFull:'KI FULL — RELEASE Q', stageClear:'STAGE CLEAR', finalStage:'FINAL STAGE', nextStage:'NEXT STAGE',
     survival:'SURVIVAL BONUS', timeBonus:'TIME BONUS', hullBonus:'HULL BONUS', combatScore:'COMBAT', starScore:'STARS', complete:'MISSION COMPLETE', lost:'SIGNAL LOST',
      completeSub:'Boss down. The next stage is unlocked.', lostSub:'Regroup. Reload. Go again.', newBest:'NEW PERSONAL BEST', finalScore:'FINAL SCORE',
-     shareScore:'SHARE SCORE', shareTitle:'My Crazy Combat score', shareTextClear:'I cleared Stage {stage} in Crazy Combat with {score} points. Can you beat it?', shareTextLost:'I scored {score} in Crazy Combat on Stage {stage}. Can you beat it?', shareCopied:'Score and link copied. Share it with your friends!', shareDone:'Score shared.', shareUnavailable:'Unable to share right now.',
+     shareScore:'SHARE SCORE', shareTitle:'My Crazy Combat score', shareTextClear:'I cleared Stage {stage} in Crazy Combat with {score} points. Can you beat it?', shareTextLost:'I scored {score} in Crazy Combat on Stage {stage}. Can you beat it?', shareCopied:'Score and link copied to your clipboard. Share it with your friends!', shareDone:'Score shared.', shareUnavailable:'Unable to copy the score right now.',
     maxCombo:'MAX COMBO', earned:'COINS EARNED', survived:'FLIGHT TIME', defeated:'DESTROYED', escaped:'NOT DESTROYED', retry:'FLY AGAIN',
      coinsSaved:'Coins already added to your balance.', noAds:'No ads. No paid stat boosts.', localOnly:'Settings and offline records stay on this browser.', rankingLocal:'LOCAL OVERALL RANKING', rankRuns:'Ranked by stage score across all of your runs.',
      help:'FLIGHT MANUAL', controls:'CONTROLS', move:'MOVE', keyboard:'Arrow keys / WASD', mouse:'MOUSE', mouseMove:'Drag the playfield to move', drag:'Drag anywhere in the playfield', mobileSpecial:'SPECIAL',
@@ -1913,7 +1914,7 @@
      if($('aside-stage'))$('aside-stage').textContent=`${String(engine.stage).padStart(3,'0')} / ${C.totalStages}`;if($('aside-kills'))$('aside-kills').textContent=s.kills;if($('aside-combo'))$('aside-combo').textContent=s.maxCombo;
     const bars=$('threat-bars');if(bars)bars.querySelectorAll('i').forEach((el,i)=>el.classList.toggle('active',i<=Math.floor(engine.elapsed/10)));
   }
-  Object.assign(CC.I18N.ko,{shareScore:'점수 공유',shareTitle:'Crazy Combat 내 점수',shareTextClear:'Crazy Combat 스테이지 {stage}를 클리어하고 {score}점을 기록했어요. 내 기록을 넘어보세요!',shareTextLost:'Crazy Combat 스테이지 {stage}에서 {score}점을 기록했어요. 내 기록을 넘어보세요!',shareCopied:'점수와 링크를 복사했어요. 친구에게 공유해보세요!',shareDone:'점수를 공유했어요.',shareUnavailable:'지금은 공유할 수 없어요.'});
+  Object.assign(CC.I18N.ko,{shareScore:'점수 공유',shareTitle:'Crazy Combat 내 점수',shareTextClear:'Crazy Combat 스테이지 {stage}를 클리어하고 {score}점을 기록했어요. 내 기록을 넘어보세요!',shareTextLost:'Crazy Combat 스테이지 {stage}에서 {score}점을 기록했어요. 내 기록을 넘어보세요!',shareCopied:'점수와 링크를 클립보드에 복사했어요. 친구에게 공유해보세요!',shareDone:'점수를 공유했어요.',shareUnavailable:'지금은 점수를 복사할 수 없어요.'});
   function topModal(){return modalStack[modalStack.length-1];}
   function openModal(modal){if(!modalStack.length)lastFocused=document.activeElement;modalStack.push(modal);renderModal();}
   function clearModals(){modalStack=[];$('modal-root').classList.add('hidden');$('modal-root').innerHTML='';$('shell').inert=false;}
@@ -1979,13 +1980,30 @@
     const mobileUserAgent=Boolean(nav.userAgentData?.mobile)||/Android|iPhone|iPad|iPod|Mobile/i.test(userAgent);
     return mobileUserAgent||mobileViewport().isMobile;
   }
+  async function copyTextToClipboard(text){
+    const clipboard=root.navigator?.clipboard;
+    if(clipboard?.writeText){
+      try{await clipboard.writeText(text);return true;}catch(_){/* Try the selection fallback below. */}
+    }
+    const area=document.createElement('textarea');
+    area.value=text;area.setAttribute('readonly','');
+    area.style.position='fixed';area.style.top='0';area.style.left='-9999px';area.style.width='1px';area.style.height='1px';area.style.opacity='0';
+    document.body.append(area);
+    let copied=false;
+    try{
+      area.focus({preventScroll:true});area.select();area.setSelectionRange(0,area.value.length);
+      copied=document.execCommand('copy');
+    }catch(_){copied=false;}
+    area.remove();
+    return copied;
+  }
   async function shareScore(result){
     const r=result||topModal()?.result||engine.result;
     if(!r)return;
     const stage=String(r.stage||1).padStart(3,'0');
     const score=number(r.score);
     const text=t(r.cleared?'shareTextClear':'shareTextLost',{stage,score});
-    const url=typeof root.location?.href==='string'&&/^https?:/i.test(root.location.href)?root.location.href:'';
+    const url=C.shareUrl||'';
     try{
       if(nativeShareAvailable()){
         await root.navigator.share({title:t('shareTitle'),text,url});
@@ -1996,15 +2014,8 @@
       if(error?.name==='AbortError')return;
     }
     const copyText=[text,url].filter(Boolean).join('\n');
-    try{
-      if(root.navigator?.clipboard?.writeText)await root.navigator.clipboard.writeText(copyText);
-      else{
-        const area=document.createElement('textarea');
-        area.value=copyText;area.setAttribute('readonly','');area.style.position='fixed';area.style.opacity='0';
-        document.body.append(area);area.select();document.execCommand('copy');area.remove();
-      }
-      translatedToast('shareCopied',{},5000);
-    }catch(_){translatedToast('shareUnavailable',{},5000);}
+    if(await copyTextToClipboard(copyText))translatedToast('shareCopied',{},5000);
+    else translatedToast('shareUnavailable',{},5000);
   }
   function exitGame(){
     clearInput();clearModals();engine.abort();releasePortraitMode();
