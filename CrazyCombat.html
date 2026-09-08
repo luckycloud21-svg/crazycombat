@@ -1913,7 +1913,7 @@
      if($('aside-stage'))$('aside-stage').textContent=`${String(engine.stage).padStart(3,'0')} / ${C.totalStages}`;if($('aside-kills'))$('aside-kills').textContent=s.kills;if($('aside-combo'))$('aside-combo').textContent=s.maxCombo;
     const bars=$('threat-bars');if(bars)bars.querySelectorAll('i').forEach((el,i)=>el.classList.toggle('active',i<=Math.floor(engine.elapsed/10)));
   }
-  Object.assign(ko,{shareScore:'점수 공유',shareTitle:'Crazy Combat 내 점수',shareTextClear:'Crazy Combat 스테이지 {stage}를 클리어하고 {score}점을 기록했어요. 내 기록을 넘어보세요!',shareTextLost:'Crazy Combat 스테이지 {stage}에서 {score}점을 기록했어요. 내 기록을 넘어보세요!',shareCopied:'점수와 링크를 복사했어요. 친구에게 공유해보세요!',shareDone:'점수를 공유했어요.',shareUnavailable:'지금은 공유할 수 없어요.'});
+  Object.assign(CC.I18N.ko,{shareScore:'점수 공유',shareTitle:'Crazy Combat 내 점수',shareTextClear:'Crazy Combat 스테이지 {stage}를 클리어하고 {score}점을 기록했어요. 내 기록을 넘어보세요!',shareTextLost:'Crazy Combat 스테이지 {stage}에서 {score}점을 기록했어요. 내 기록을 넘어보세요!',shareCopied:'점수와 링크를 복사했어요. 친구에게 공유해보세요!',shareDone:'점수를 공유했어요.',shareUnavailable:'지금은 공유할 수 없어요.'});
   function topModal(){return modalStack[modalStack.length-1];}
   function openModal(modal){if(!modalStack.length)lastFocused=document.activeElement;modalStack.push(modal);renderModal();}
   function clearModals(){modalStack=[];$('modal-root').classList.add('hidden');$('modal-root').innerHTML='';$('shell').inert=false;}
