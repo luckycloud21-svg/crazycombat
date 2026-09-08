@@ -134,7 +134,7 @@
   }
   @media (pointer:coarse) and (orientation:portrait) and (max-width:900px){
     .game-controls{inset:0;height:auto;align-items:flex-end;background:linear-gradient(transparent 68%,#09182cd9);padding-left:max(9px,env(safe-area-inset-left));padding-right:max(9px,env(safe-area-inset-right));padding-bottom:max(10px,env(safe-area-inset-bottom))}
-    .game-controls .pause-button{position:absolute;top:clamp(74px,11%,90px);left:max(10px,env(safe-area-inset-left));z-index:2}
+    .game-controls .pause-button{position:absolute;top:auto;bottom:clamp(92px,14%,126px);left:max(10px,env(safe-area-inset-left));z-index:2}
     .field-footer{flex:1;max-width:none;min-width:0}
     .special-button{display:flex;order:1}
     .field-footer{order:2}
@@ -1667,7 +1667,7 @@
     orientationState.landscape=false;orientationState.pausedByOrientation=false;orientationState.lockRequested=false;orientationState.locked=false;orientationState.autoFullscreen=false;
   }
   async function requestPortraitOrientation(){
-    if(view!=='flight'||!isLandscapeMobile()||orientationState.lockRequested)return;
+    if(!isLandscapeMobile()||orientationState.lockRequested)return;
     orientationState.lockRequested=true;
     const orientation=root.screen?.orientation,lock=orientation?.lock?.bind(orientation);
     if(typeof lock!=='function'){resize();return;}
@@ -1833,7 +1833,6 @@
   }
    function showView(next){
      if(next!=='flight'&&['playing','countdown','tutorial','paused','resuming'].includes(engine.state))engine.abort();
-     if(next!=='flight'&&(orientationState.lockRequested||orientationState.locked||orientationState.autoFullscreen))releasePortraitMode();
      if(next!=='records')recordsReturn=null;
      clearModals();root.scrollTo({top:0,behavior:'instant'});view=next;document.body.classList.toggle('in-flight',next==='flight');
     $('menu').classList.toggle('hidden',next==='flight');$('game-screen').classList.toggle('hidden',next!=='flight');
@@ -1960,6 +1959,11 @@
     try{if(document.fullscreenElement){orientationState.autoFullscreen=false;await document.exitFullscreen();}else if(document.documentElement.requestFullscreen){await document.documentElement.requestFullscreen();orientationState.autoFullscreen=false;}else throw new Error();}
     catch(_){translatedToast('fullscreenUnavailable');}
   }
+  function exitGame(){
+    clearInput();clearModals();engine.abort();releasePortraitMode();
+    if(root.opener&&!root.opener.closed){try{root.close();}catch(_){}if(root.closed)return;}
+    try{root.location.replace('about:blank');}catch(_){try{root.location.href='about:blank';}catch(_){}}
+  }
   function changeLanguage(lang){saveSettings('language',lang);if(view==='flight'){renderFlightPanels();renderTraining(engine.tutorialStep||0);}else renderMenu();if(modalStack.length)renderModal();refreshHud(true);}
   function action(name,button){
     if(name!=='shield')audio.sfx('ui');
@@ -1973,9 +1977,7 @@
            confirmAction('returnBaseTitle','returnBaseBody','returnBase',()=>{recordsReturn=null;engine.abort();showView('lobby');});
          }else {recordsReturn=null;if(engine.state==='result')engine.abort();showView('lobby');}break;
        case 'exit':
-         if(root.opener&&!root.opener.closed){root.close();break;}
-         if(root.history.length>1){root.history.back();break;}
-         translatedToast('exitUnavailable',{},7000);break;
+          exitGame();break;
        case 'hangar':showView('hangar');break;
        case 'records':{const resultModal=topModal();recordsReturn=resultModal?.type==='result'?{result:resultModal.result,isBest:!!resultModal.isBest}:null;showView('records');break;}
        case 'resume-records':{const returnState=recordsReturn;recordsReturn=null;if(returnState?.result){showView('flight');openModal({type:'result',result:returnState.result,isBest:returnState.isBest});}else showView('lobby');break;}
@@ -2107,9 +2109,21 @@
   root.addEventListener('storage',event=>{
     if(event.key===store.key&&event.newValue){try{store.profile=K.normalize(JSON.parse(event.newValue),P().settings.language);syncSettings();if(view==='flight'){engine.pause();translatedToast('anotherTab',{},9000);}else renderMenu();}catch(_){}}
   });
-  function resize(){
-    if(view==='flight'){
-      const layout=$('game-layout'),field=$('game-field'),viewportW=document.documentElement.clientWidth||root.innerWidth,viewportH=document.documentElement.clientHeight||root.innerHeight;
+   function resize(){
+     const landscapePhone=isLandscapeMobile(),rotateNotice=$('rotate-notice');
+     rotateNotice.classList.toggle('hidden',!landscapePhone);
+     if(landscapePhone){
+       if(!orientationState.landscape){
+         orientationState.landscape=true;
+         if(view==='flight'&&['playing','countdown','tutorial','resuming'].includes(engine.state)){engine.pause();orientationState.pausedByOrientation=true;}
+       }
+       if(!orientationState.lockRequested)requestPortraitOrientation();
+     }else{
+       if(orientationState.landscape&&orientationState.pausedByOrientation&&engine.state==='paused'){orientationState.pausedByOrientation=false;engine.resume();}
+       orientationState.landscape=false;
+     }
+     if(view==='flight'){
+       const layout=$('game-layout'),field=$('game-field'),viewportW=document.documentElement.clientWidth||root.innerWidth,viewportH=document.documentElement.clientHeight||root.innerHeight;
       const top=Math.max(0,layout.getBoundingClientRect().top),compact=viewportW<=720,oneSide=!compact&&(viewportW<=1150||viewportH<=700),sideCount=compact?0:oneSide?1:2;
       const sideWidth=sideCount?$('right-flight-panel').getBoundingClientRect().width*sideCount:0,gap=parseFloat(getComputedStyle(layout).columnGap||getComputedStyle(layout).gap)||0;
       const availableW=Math.max(120,layout.clientWidth-sideWidth-gap*sideCount),availableH=Math.max(180,viewportH-top-12);
@@ -2117,20 +2131,9 @@
       // allowing the page to scroll when the viewport is shorter than the field.
       const width=Math.max(120,Math.min(540,availableW,availableH*9/16));
       field.style.setProperty('--game-field-width',width+'px');field.style.width=width+'px';field.style.height=width*16/9+'px';engine.resize();
-      const landscapePhone=isLandscapeMobile(),rotateNotice=$('rotate-notice');
-      rotateNotice.classList.toggle('hidden',!landscapePhone);
-      if(landscapePhone){
-        if(!orientationState.landscape){
-          orientationState.landscape=true;
-          if(['playing','countdown','tutorial','resuming'].includes(engine.state)){engine.pause();orientationState.pausedByOrientation=true;}
-        }
-      }else{
-        if(orientationState.landscape&&orientationState.pausedByOrientation&&engine.state==='paused'){orientationState.pausedByOrientation=false;engine.resume();}
-        orientationState.landscape=false;
-      }
-    }else $('rotate-notice').classList.add('hidden');
-    drawPreviews(0);
-  }
+     }
+     drawPreviews(0);
+   }
   root.addEventListener('resize',resize);document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement)orientationState.autoFullscreen=false;resize();});
   root.screen?.orientation?.addEventListener?.('change',resize);
   root.visualViewport?.addEventListener('resize',resize);
