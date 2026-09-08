@@ -1972,6 +1972,13 @@
     try{if(document.fullscreenElement){orientationState.autoFullscreen=false;await document.exitFullscreen();}else if(document.documentElement.requestFullscreen){await document.documentElement.requestFullscreen();orientationState.autoFullscreen=false;}else throw new Error();}
     catch(_){translatedToast('fullscreenUnavailable');}
   }
+  function nativeShareAvailable(){
+    const nav=root.navigator;
+    if(typeof nav?.share!=='function')return false;
+    const userAgent=String(nav.userAgent||'');
+    const mobileUserAgent=Boolean(nav.userAgentData?.mobile)||/Android|iPhone|iPad|iPod|Mobile/i.test(userAgent);
+    return mobileUserAgent||mobileViewport().isMobile;
+  }
   async function shareScore(result){
     const r=result||topModal()?.result||engine.result;
     if(!r)return;
@@ -1980,7 +1987,7 @@
     const text=t(r.cleared?'shareTextClear':'shareTextLost',{stage,score});
     const url=typeof root.location?.href==='string'&&/^https?:/i.test(root.location.href)?root.location.href:'';
     try{
-      if(typeof root.navigator?.share==='function'){
+      if(nativeShareAvailable()){
         await root.navigator.share({title:t('shareTitle'),text,url});
         translatedToast('shareDone',{},3000);
         return;
