@@ -62,6 +62,13 @@
     .mouse-help{color:#bde2e4!important}.superbomb-help{color:#ffd0a2!important}
     @media(max-width:680px){.superbomb-hud{margin-left:12px;margin-right:12px}.superbomb-hud div>span{font-size:8px}}
   </style>
+  <style id="mobile-flight-controls">
+    .special-button{--charge:0%;display:none;flex:0 0 70px;width:70px;height:70px;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:1px solid #ffb47798;border-radius:50%;color:#ffe0b6;background:radial-gradient(circle,#55362fe8 57%,transparent 59%),conic-gradient(#ffae74 var(--charge),#3a3440 0);box-shadow:0 0 22px #ff9b5c12;touch-action:none;user-select:none;-webkit-user-select:none}
+    .special-button .special-button-key{display:grid;place-content:center;width:23px;height:22px;border:1px solid #ffc28c;border-bottom-width:3px;border-radius:5px;background:#5b3833;color:#fff0d2;font:800 10px Consolas,monospace}
+    .special-button b{font-size:8px;letter-spacing:.5px}.special-button small{font-size:8px;letter-spacing:.4px;color:#ffd0a7}
+    .special-button.ready{border-color:#ffd59a;box-shadow:0 0 25px #ffb4674d}.special-button.charging{transform:scale(.96);background:radial-gradient(circle,#704133f5 57%,transparent 59%),conic-gradient(#ffd18c var(--charge),#4d3a42 0)}
+    .special-button:disabled{opacity:.48}.special-button:active{transform:scale(.96)}
+  </style>
 <style>
   .stat-bars i{background:#2c4555}
   .stat-bars i.active{background:#6d98a1}
@@ -125,11 +132,22 @@
     #right-flight-panel>.aside-tip{margin:0!important}
     .game-field{border-radius:11px}
   }
+  @media (pointer:coarse) and (orientation:portrait) and (max-width:900px){
+    .game-controls{padding-left:max(9px,env(safe-area-inset-left));padding-right:max(9px,env(safe-area-inset-right));padding-bottom:max(10px,env(safe-area-inset-bottom))}
+    .field-footer{flex:1;max-width:none;min-width:0}
+    .special-button{display:flex}
+  }
   @media(max-width:380px){
     .flight-responsive-hint{font-size:9px;letter-spacing:0}
     #right-flight-panel{gap:7px;padding:9px}
     #right-flight-panel>.aside-stat{padding:5px 6px}
     #right-flight-panel>.aside-stat>strong{font-size:12px}
+    .game-controls{gap:4px;padding-left:7px;padding-right:7px}
+    .pause-button{width:42px;height:42px}
+    .special-button{width:62px;height:62px}
+    .shield-button{width:66px;height:66px}
+    .special-button b{font-size:7px;letter-spacing:.2px}
+    .special-button small{font-size:7px}
   }
 </style>
 <style id="mobile-orientation-ui">
@@ -242,11 +260,12 @@
             <div id="combo-hud" class="combo-hud hidden"><strong id="combo-number">5</strong><div><span>COMBO</span><b id="combo-multiplier">×1.1</b></div><i id="combo-timer"></i></div>
             <div id="banner" class="field-banner hidden"></div>
           </div>
-          <div id="game-controls" class="game-controls">
-            <button id="pause-button" class="pause-button" data-action="pause" aria-label="Pause"></button>
-            <div class="field-footer"><span id="field-auto" data-i18n="autoFire">AUTO FIRE</span><strong id="hud-coins">✦ 0</strong><small id="magnet-timer"></small></div>
-            <button id="shield-button" class="shield-button" data-action="shield" aria-label="Activate shield"><span class="shield-icon"></span><b data-i18n="shield">SHIELD</b><small id="shield-status">READY</small></button>
-          </div>
+           <div id="game-controls" class="game-controls">
+             <button id="pause-button" class="pause-button" data-action="pause" aria-label="Pause"></button>
+             <div class="field-footer"><span id="field-auto" data-i18n="autoFire">AUTO FIRE</span><strong id="hud-coins">✦ 0</strong><small id="magnet-timer"></small></div>
+             <button id="special-button" class="special-button" type="button" aria-label="Charge special missile"><span class="special-button-key">Q</span><b data-i18n="mobileSpecial">SPECIAL</b><small id="special-status">0%</small></button>
+             <button id="shield-button" class="shield-button" data-action="shield" aria-label="Activate shield"><span class="shield-icon"></span><b data-i18n="shield">SHIELD</b><small id="shield-status">READY</small></button>
+           </div>
           <div id="training-card" class="training-card hidden"><div class="eyebrow" id="training-label"></div><h3 id="training-title"></h3><p id="training-copy"></p><div class="training-footer"><span id="training-dots"></span><button data-action="skip-training" class="text-button" data-i18n="skip">SKIP TRAINING</button></div></div>
           <div id="countdown-overlay" class="countdown-overlay hidden"><span id="countdown-label" class="eyebrow">LAUNCH IN</span><strong id="countdown-number">3</strong><div class="countdown-line"></div></div>
         </div>
@@ -672,8 +691,8 @@
      completeSub:'Boss down. The next stage is unlocked.', lostSub:'Regroup. Reload. Go again.', newBest:'NEW PERSONAL BEST', finalScore:'FINAL SCORE',
     maxCombo:'MAX COMBO', earned:'COINS EARNED', survived:'FLIGHT TIME', defeated:'DESTROYED', escaped:'NOT DESTROYED', retry:'FLY AGAIN',
      coinsSaved:'Coins already added to your balance.', noAds:'No ads. No paid stat boosts.', localOnly:'Settings and offline records stay on this browser.', rankingLocal:'LOCAL OVERALL RANKING', rankRuns:'Ranked by stage score across all of your runs.',
-    help:'FLIGHT MANUAL', controls:'CONTROLS', move:'MOVE', keyboard:'Arrow keys / WASD', mouse:'MOUSE', mouseMove:'Drag the playfield to move', drag:'Drag anywhere in the playfield',
-    shieldHelp:'Space / Shift or the shield button', pauseHelp:'Escape / P', focusHelp:'Click or tap the game once to give it keyboard focus.', responsiveControls:'MOVE: MOUSE DRAG · ARROW KEYS / WASD · SPECIAL: RIGHT CLICK / Q · SHIELD: SPACE · SUPER BOMB: E / MIDDLE CLICK / TAP',
+     help:'FLIGHT MANUAL', controls:'CONTROLS', move:'MOVE', keyboard:'Arrow keys / WASD', mouse:'MOUSE', mouseMove:'Drag the playfield to move', drag:'Drag anywhere in the playfield', mobileSpecial:'SPECIAL',
+     shieldHelp:'Space / Shift or the shield button', pauseHelp:'Escape / P', focusHelp:'Click or tap the game once to give it keyboard focus.', responsiveControls:'MOVE: DRAG · SPECIAL: HOLD SPECIAL · SHIELD: TAP SHIELD · SUPER BOMB: TAP E',
      rules:'MISSION BRIEFING', rule1:'There is no time limit. Defeat the boss to clear the stage.',
      rule2:'Clear the stage to unlock the next one. There are 1,000 stages, and every stage gets harder.',
     rule3:'Your shield lasts 3 seconds and recharges every 20 seconds.',
@@ -733,8 +752,8 @@
      completeSub:'보스를 격파했어요. 다음 스테이지가 열렸어요.', lostSub:'다시 정비하고, 더 멀리 날아보세요.', newBest:'최고 기록 갱신', finalScore:'최종 점수',
     maxCombo:'최대 콤보', earned:'획득 코인', survived:'비행 시간', defeated:'격파 성공', escaped:'미격파', retry:'다시 도전',
      coinsSaved:'획득 코인이 잔액에 반영됐어요.', noAds:'광고 없음 · 유료 능력치 없음', localOnly:'이 브라우저에만 저장돼요.', rankingLocal:'로컬 종합 랭킹', rankRuns:'모든 전투 기록을 스테이지 점수순으로 정렬해요.',
-    help:'비행 매뉴얼', controls:'조작 방법', move:'이동', keyboard:'방향키 / WASD', mouse:'마우스', mouseMove:'게임 영역을 드래그해 이동', drag:'게임 영역을 손가락으로 드래그',
-    shieldHelp:'Space / Shift 또는 쉴드 버튼', pauseHelp:'Escape / P', focusHelp:'키보드가 반응하지 않으면 게임을 한 번 클릭하세요.', responsiveControls:'이동: 마우스 드래그 · 방향키 / WASD · 특수 미사일: 우클릭 / Q · 쉴드: SPACE · 슈퍼밤: E / 가운데 버튼 / 화면 터치',
+     help:'비행 매뉴얼', controls:'조작 방법', move:'이동', keyboard:'방향키 / WASD', mouse:'마우스', mouseMove:'게임 영역을 드래그해 이동', drag:'게임 영역을 손가락으로 드래그', mobileSpecial:'특수',
+     shieldHelp:'Space / Shift 또는 쉴드 버튼', pauseHelp:'Escape / P', focusHelp:'키보드가 반응하지 않으면 게임을 한 번 클릭하세요.', responsiveControls:'이동: 화면 드래그 · 특수 미사일: SPECIAL 길게 누르기 · 쉴드: SHIELD 터치 · 슈퍼밤: E 터치',
      rules:'전투 안내', rule1:'시간 제한은 없어요. 보스를 격파하면 스테이지가 클리어돼요.',
      rule2:'스테이지를 클리어하면 다음 단계가 열려요. 총 1,000단계이며 점점 어려워져요.',
     rule3:'쉴드는 3초 동안 무적이며, 재사용 대기시간은 20초예요.',
@@ -1562,7 +1581,7 @@
   }
   let itchAuth=loadAuthSession(),oauthWindow=null,oauthState='';
   let globalPersonal={userId:String(itchAuth?.user?.id||''),score:0,cumulativeScore:0,stage:1,rank:0};
-  const keys=new Set(),P=()=>store.profile;let superBombKeyHeld=false,rightMouseQ=false;
+   const keys=new Set(),P=()=>store.profile;let superBombKeyHeld=false,rightMouseQ=false,mobileSpecialHeld=false,mobileSpecialPointer=null;
   function t(key,args={}){let text=CC.I18N[P().settings.language][key]||CC.I18N.en[key]||key;for(const [k,v]of Object.entries(args))text=text.replaceAll(`{${k}}`,String(v));return text;}
   function authOrigin(){try{return new URL(C.leaderboardEndpoint).origin;}catch(_){return '';}}
   function saveAuthSession(){
@@ -1632,7 +1651,7 @@
   });
   function syncSettings(){audio.settings=P().settings;engine.settings={...P().settings,reducedMotion:P().settings.reducedMotion||autoReduced};document.documentElement.lang=P().settings.language;}
   function saveSettings(key,value){store.transaction(p=>{p.settings[key]=value;return true;});syncSettings();renderHeader();refreshHud(true);}
-  function clearInput(){keys.clear();pointer=null;engine.target=null;superBombKeyHeld=false;rightMouseQ=false;}
+   function clearInput(){keys.clear();pointer=null;engine.target=null;superBombKeyHeld=false;rightMouseQ=false;mobileSpecialHeld=false;mobileSpecialPointer=null;$('special-button')?.classList.remove('charging');}
   function mobileViewport(){
     const viewport=root.visualViewport,width=Number(viewport?.width)||root.innerWidth,height=Number(viewport?.height)||root.innerHeight;
     const touch=matchMedia('(pointer:coarse)').matches||Number(root.navigator?.maxTouchPoints)>0;
@@ -1860,10 +1879,11 @@
      $('hud-progress').style.width=Math.min(100,engine.elapsed/C.bossSpawnSeconds*100)+'%';
      $('hud-stage-label').textContent=`${t('stage')} ${String(engine.stage).padStart(3,'0')} / ${C.totalStages}`;
      $('hud-difficulty').textContent=`${t('threat')} ×${engine.difficulty.enemy.toFixed(1)}`;
-     $('hud-ki').style.width=(p.ki/C.specialMissile.maxKi*100)+'%';$('hud-ki-track').classList.toggle('ready',p.ki>=C.specialMissile.maxKi);
-     const bombReady=p.superBomb>0;$('superbomb-hud').classList.toggle('hidden',!bombReady);$('superbomb-hud').classList.toggle('ready',bombReady);$('superbomb-hud').disabled=!bombReady;$('superbomb-hud').setAttribute('aria-label',t('superBombReady'));$('hud-superbomb-status').textContent=bombReady?`${t('superBombReady')} · ${p.superBomb}`:'';
-     $('hud-ki-status').textContent=p.ki>=C.specialMissile.maxKi?t('specialReady'):`${t('charging')} ${Math.floor(p.ki)}%`;
-    $('hud-coins').textContent=`✦ ${s.coins}`;$('magnet-timer').textContent=p.magnet>0?`${t('magnet')} ${p.magnet.toFixed(1)}s`:'';
+      $('hud-ki').style.width=(p.ki/C.specialMissile.maxKi*100)+'%';$('hud-ki-track').classList.toggle('ready',p.ki>=C.specialMissile.maxKi);
+      const bombReady=p.superBomb>0;$('superbomb-hud').classList.toggle('hidden',!bombReady);$('superbomb-hud').classList.toggle('ready',bombReady);$('superbomb-hud').disabled=!bombReady;$('superbomb-hud').setAttribute('aria-label',t('superBombReady'));$('hud-superbomb-status').textContent=bombReady?`${t('superBombReady')} · ${p.superBomb}`:'';
+      $('hud-ki-status').textContent=p.ki>=C.specialMissile.maxKi?t('specialReady'):`${t('charging')} ${Math.floor(p.ki)}%`;
+      const specialButton=$('special-button');if(specialButton){const specialReady=p.ki>=C.specialMissile.maxKi;specialButton.disabled=state!=='playing';specialButton.classList.toggle('ready',specialReady);specialButton.classList.toggle('charging',mobileSpecialHeld);specialButton.style.setProperty('--charge',`${Math.min(100,p.ki/C.specialMissile.maxKi*100)}%`);specialButton.setAttribute('aria-pressed',String(mobileSpecialHeld));specialButton.setAttribute('aria-label',specialReady?t('specialReady'):t('specialHelp'));specialButton.querySelector('small').textContent=specialReady?t('readyShield'):`${Math.floor(p.ki)}%`;}
+     $('hud-coins').textContent=`✦ ${s.coins}`;$('magnet-timer').textContent=p.magnet>0?`${t('magnet')} ${p.magnet.toFixed(1)}s`:'';
     $('game-controls').classList.toggle('left-handed',P().settings.leftHanded);
     $('shield-status').textContent=p.shield>0?`${p.shield.toFixed(1)}s`:p.cooldown>0?`${Math.ceil(p.cooldown)}s`:t('readyShield');
     $('shield-button').style.setProperty('--cooldown',((1-p.cooldown/C.player.shieldCooldown)*100)+'%');
@@ -2033,11 +2053,27 @@
   canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);canvas.addEventListener('lostpointercapture',release);
   canvas.addEventListener('contextmenu',e=>e.preventDefault());
   canvas.addEventListener('auxclick',event=>{if(event.button===1)event.preventDefault();});
-  $('superbomb-hud').addEventListener('click',event=>{
-    event.preventDefault();
-    if(view==='flight'&&!event.currentTarget.disabled){audio.unlock();engine.fireSuperBomb();refreshHud(true);}
-  });
-  $('rotate-retry').addEventListener('click',()=>{audio.unlock();orientationState.lockRequested=false;requestPortraitOrientation();});
+   $('superbomb-hud').addEventListener('click',event=>{
+     event.preventDefault();
+     if(view==='flight'&&!event.currentTarget.disabled){audio.unlock();engine.fireSuperBomb();refreshHud(true);}
+   });
+   const specialButton=$('special-button');
+   const releaseMobileSpecial=event=>{
+     if(mobileSpecialPointer===null||event.pointerId!==mobileSpecialPointer)return;
+     mobileSpecialPointer=null;mobileSpecialHeld=false;specialButton.classList.remove('charging');
+     if(!keys.has('KeyQ')&&!rightMouseQ)engine.releaseSpecialCharge();
+     refreshHud(true);event.preventDefault();
+   };
+   specialButton.addEventListener('pointerdown',event=>{
+     if(event.currentTarget.disabled||!['playing'].includes(engine.state))return;
+     audio.unlock();mobileSpecialPointer=event.pointerId;mobileSpecialHeld=true;specialButton.classList.add('charging');
+     try{specialButton.setPointerCapture(event.pointerId);}catch(_){}
+     refreshHud(true);event.preventDefault();
+   },{passive:false});
+   specialButton.addEventListener('pointerup',releaseMobileSpecial,{passive:false});
+   specialButton.addEventListener('pointercancel',releaseMobileSpecial,{passive:false});
+   specialButton.addEventListener('lostpointercapture',releaseMobileSpecial,{passive:false});
+   $('rotate-retry').addEventListener('click',()=>{audio.unlock();orientationState.lockRequested=false;requestPortraitOrientation();});
   $('shield-button').addEventListener('pointerdown',event=>{if(!event.currentTarget.disabled){audio.unlock();engine.shield();refreshHud(true);event.preventDefault();}},{passive:false});
   document.addEventListener('keydown',event=>{
     if(topModal()){
@@ -2098,7 +2134,7 @@
           if(engine.state==='playing'&&elapsed>1/29)slowSeconds+=Math.min(elapsed,.15);else slowSeconds=Math.max(0,slowSeconds-elapsed*.5);
           if(slowSeconds>3&&!autoReduced&&!P().settings.reducedMotion){autoReduced=true;syncSettings();translatedToast('lowEffects');}
           accumulator=Math.min(.12,accumulator+Math.min(elapsed,.12));
-           const input={x:Number(keys.has('ArrowRight')||keys.has('KeyD'))-Number(keys.has('ArrowLeft')||keys.has('KeyA')),y:Number(keys.has('ArrowDown')||keys.has('KeyS'))-Number(keys.has('ArrowUp')||keys.has('KeyW')),q:keys.has('KeyQ')||rightMouseQ};
+            const input={x:Number(keys.has('ArrowRight')||keys.has('KeyD'))-Number(keys.has('ArrowLeft')||keys.has('KeyA')),y:Number(keys.has('ArrowDown')||keys.has('KeyS'))-Number(keys.has('ArrowUp')||keys.has('KeyW')),q:keys.has('KeyQ')||rightMouseQ||mobileSpecialHeld};
           while(accumulator>=1/120){engine.step(1/120,input);accumulator-=1/120;}
           engine.draw();if(now-hudAt>40){refreshHud();hudAt=now;}
           audio.music(engine.state==='playing',!!engine.boss?.active);
