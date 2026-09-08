@@ -133,9 +133,12 @@
     .game-field{border-radius:11px}
   }
   @media (pointer:coarse) and (orientation:portrait) and (max-width:900px){
-    .game-controls{padding-left:max(9px,env(safe-area-inset-left));padding-right:max(9px,env(safe-area-inset-right));padding-bottom:max(10px,env(safe-area-inset-bottom))}
+    .game-controls{inset:0;height:auto;align-items:flex-end;background:linear-gradient(transparent 68%,#09182cd9);padding-left:max(9px,env(safe-area-inset-left));padding-right:max(9px,env(safe-area-inset-right));padding-bottom:max(10px,env(safe-area-inset-bottom))}
+    .game-controls .pause-button{position:absolute;top:clamp(74px,11%,90px);left:max(10px,env(safe-area-inset-left));z-index:2}
     .field-footer{flex:1;max-width:none;min-width:0}
-    .special-button{display:flex}
+    .special-button{display:flex;order:1}
+    .field-footer{order:2}
+    .shield-button{order:3}
   }
   @media(max-width:380px){
     .flight-responsive-hint{font-size:9px;letter-spacing:0}
@@ -272,7 +275,7 @@
         <aside id="right-flight-panel" class="flight-aside"></aside>
       </div>
     </section>
-    <footer id="footer" class="footer"><span id="footer-edition">HTML5 EDITION · v1.10.0</span><span id="footer-note">NO ADS. NO PAID STAT BOOSTS.</span><button data-action="privacy" class="text-button" id="footer-privacy">DATA & CREDITS</button></footer>
+     <footer id="footer" class="footer"><button data-action="exit" class="text-button home-exit-button hidden" id="home-exit-button" data-i18n="exit">EXIT GAME</button><span id="footer-edition">HTML5 EDITION · v1.10.0</span><span id="footer-note">NO ADS. NO PAID STAT BOOSTS.</span><button data-action="privacy" class="text-button" id="footer-privacy">DATA & CREDITS</button></footer>
   </div>
   <div id="modal-root" class="modal-root hidden"></div>
   <div id="toast" class="toast hidden" role="status"></div>
@@ -719,7 +722,7 @@
     supply:'SUPPLY INBOUND', hpFull:'FULL HULL · +2', powerFull:'MAX POWER · +4', magnet:'MAGNET', secured:'SECTOR SECURED',
     play_1:'Complete 1 flight', kill_50:'Destroy 50 enemies', kill_100:'Destroy 100 enemies', combo_15:'Reach a 15-kill combo',
     power_5:'Reach POWER level 5', survive_60:'Survive a full 60 seconds', boss_kill:'Destroy the boss', shield_2:'Use 2 shields in one flight', coin_40:'Collect 40 coins in one flight',
-     date:'DATE', ship:'SHIP', rank:'RANK', recent:'OVERALL RANKING · THIS BROWSER', badge:'SINGLE PLAYER · 1,000 STAGES',
+     date:'DATE', ship:'SHIP', rank:'RANK', recent:'OVERALL RANKING · THIS BROWSER', badge:'SINGLE PLAYER · 1,000 STAGES', exit:'EXIT GAME', exitUnavailable:'This game is running in the current tab. Close the tab or browser window to exit.',
     continue:'CONTINUE', gameError:'A runtime error interrupted the flight. Your saved progress is safe. Reload the game.',
     anotherTab:'Progress changed in another tab. Return to base and reload before continuing to avoid overwriting it.'
   };
@@ -780,7 +783,7 @@
     supply:'보급 접근', hpFull:'최대 체력 · +2', powerFull:'최대 파워 · +4', magnet:'자석', secured:'구간 확보',
     play_1:'전투 1회 완료', kill_50:'일반 적 50기 처치', kill_100:'일반 적 100기 처치', combo_15:'15 콤보 달성',
     power_5:'POWER 5단계 달성', survive_60:'60초 동안 생존', boss_kill:'보스 1기 격파', shield_2:'한 전투에서 쉴드 2회 사용', coin_40:'한 전투에서 코인 40개 획득',
-     date:'날짜', ship:'기체', rank:'순위', recent:'종합 랭킹 · 이 브라우저', badge:'1인 플레이 · 1,000 스테이지',
+      date:'날짜', ship:'기체', rank:'순위', recent:'종합 랭킹 · 이 브라우저', badge:'1인 플레이 · 1,000 스테이지', exit:'게임 종료', exitUnavailable:'현재 탭에서 실행 중이에요. 종료하려면 탭이나 브라우저 창을 닫아주세요.',
     continue:'계속', gameError:'실행 오류로 전투가 중단됐어요. 저장된 기록은 안전해요. 게임을 새로고침하세요.',
     anotherTab:'다른 탭에서 저장 정보가 바뀌었어요. 덮어쓰지 않도록 로비로 돌아가 새로고침하세요.'
   };
@@ -1687,8 +1690,9 @@
     document.querySelector('#shield-button .shield-icon').innerHTML=icon('shield');$('shield-button').setAttribute('aria-label',t('shield'));
     $('footer-edition').textContent=t('version');$('footer-note').textContent=t('noAds');$('footer-privacy').textContent=t('privacy');
     document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));
-    const responsiveHint=$('flight-responsive-hint');if(responsiveHint)responsiveHint.textContent=t('responsiveControls');
-    $('flight-canvas').setAttribute('aria-label',`${t('controls')}. ${t('keyboard')}. ${t('mouseMove')}. ${t('shieldHelp')}. ${t('superBombHelp')}. ${t('pauseHelp')}.`);
+     const responsiveHint=$('flight-responsive-hint');if(responsiveHint)responsiveHint.textContent=t('responsiveControls');
+     const homeExit=$('home-exit-button');if(homeExit){homeExit.classList.toggle('hidden',view!=='lobby');homeExit.setAttribute('aria-label',t('exit'));}
+     $('flight-canvas').setAttribute('aria-label',`${t('controls')}. ${t('keyboard')}. ${t('mouseMove')}. ${t('shieldHelp')}. ${t('superBombHelp')}. ${t('pauseHelp')}.`);
   }
   function bindPreviews(){previews=Array.from(document.querySelectorAll('canvas[data-ship]'));drawPreviews(0);}
   function drawPreviews(time){for(const canvas of previews){if(canvas.getClientRects().length)CC.Art.preview(canvas,canvas.dataset.ship,P().settings.reducedMotion?0:time,canvas.classList.contains('hero-preview'));}}
@@ -1968,7 +1972,11 @@
          else if(view==='flight'&&topModal()?.type==='result'&&topModal().result?.cleared){
            confirmAction('returnBaseTitle','returnBaseBody','returnBase',()=>{recordsReturn=null;engine.abort();showView('lobby');});
          }else {recordsReturn=null;if(engine.state==='result')engine.abort();showView('lobby');}break;
-      case 'hangar':showView('hangar');break;
+       case 'exit':
+         if(root.opener&&!root.opener.closed){root.close();break;}
+         if(root.history.length>1){root.history.back();break;}
+         translatedToast('exitUnavailable',{},7000);break;
+       case 'hangar':showView('hangar');break;
        case 'records':{const resultModal=topModal();recordsReturn=resultModal?.type==='result'?{result:resultModal.result,isBest:!!resultModal.isBest}:null;showView('records');break;}
        case 'resume-records':{const returnState=recordsReturn;recordsReturn=null;if(returnState?.result){showView('flight');openModal({type:'result',result:returnState.result,isBest:returnState.isBest});}else showView('lobby');break;}
       case 'global-refresh':loadGlobalLeaderboard();break;
