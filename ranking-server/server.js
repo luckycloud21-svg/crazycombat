@@ -2,10 +2,15 @@ const express = require('express');
 const cors = require('cors');
 const { createHash, createHmac, timingSafeEqual } = require('crypto');
 const { Pool } = require('pg');
+const { CLEANUP_LOCK_KEY, cleanupHistory, ensureRetentionSchema } = require('./cleanup');
 
 const app = express();
 const port = Number(process.env.PORT || 10000);
 const maxRunScore = 2000000000;
+const dbPoolMax = Number(process.env.DB_POOL_MAX || 5);
+const dbConnectionTimeoutMillis = Number(process.env.DB_CONNECTION_TIMEOUT_MS || 10000);
+const dbIdleTimeoutMillis = Number(process.env.DB_IDLE_TIMEOUT_MS || 10000);
+const rankingWritesEnabled = () => String(process.env.RANKING_WRITES_ENABLED || 'true').toLowerCase() !== 'false';
 const publicBaseUrl = String(process.env.PUBLIC_BASE_URL || (process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : '')).replace(/\/+$/, '');
 const itchOAuthRedirectUri = String(process.env.ITCH_OAUTH_REDIRECT_URI || (publicBaseUrl ? `${publicBaseUrl}/auth/itch/callback` : ''));
 const authSecret = String(process.env.AUTH_SECRET || createHash('sha256').update(`crazycombat-auth:${process.env.DATABASE_URL || 'development'}`).digest('hex'));
@@ -17,7 +22,10 @@ if (!process.env.DATABASE_URL) {
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production'
+  max: Number.isInteger(dbPoolMax) && dbPoolMax > 0 ? dbPoolMax : 5,
+  connectionTimeoutMillis: dbConnectionTimeoutMillis,
+  idleTimeoutMillis: dbIdleTimeoutMillis,
+  ssl: process.env.NODE_ENV === 'production' || /sslmode=require/i.test(process.env.DATABASE_URL)
     ? { rejectUnauthorized: false }
     : undefined
 });
@@ -61,8 +69,33 @@ app.use(cors({
 
 app.use(express.json({ limit: '10kb' }));
 
-app.get('/healthz', (req, res) => {
-  res.json({ ok: true, service: 'crazycombat-ranking' });
+app.get('/healthz', async (req, res) => {
+  const deep = String(req.query.db || '').toLowerCase() === '1'
+    || String(req.query.deep || '').toLowerCase() === '1';
+  if (!deep) {
+    return res.json({
+      ok: true,
+      service: 'crazycombat-ranking',
+      writesEnabled: rankingWritesEnabled()
+    });
+  }
+  try {
+    await pool.query('SELECT 1');
+    return res.json({
+      ok: true,
+      service: 'crazycombat-ranking',
+      database: 'ok',
+      writesEnabled: rankingWritesEnabled()
+    });
+  } catch (error) {
+    console.error('GET /healthz?db=1 failed:', error.message);
+    return res.status(503).json({
+      ok: false,
+      service: 'crazycombat-ranking',
+      database: 'error',
+      writesEnabled: rankingWritesEnabled()
+    });
+  }
 });
 
 function signedSession(user) {
@@ -225,6 +258,12 @@ app.get('/api/ranking', async (req, res) => {
 app.post('/api/ranking', async (req, res) => {
   const user = authenticatedUser(req);
   if (!user) return res.status(401).json({ error: 'itch.io account connection required' });
+  if (!rankingWritesEnabled()) {
+    return res.status(503).json({
+      error: 'Ranking writes are temporarily paused',
+      code: 'RANKING_WRITES_PAUSED'
+    });
+  }
   const body = req.body && typeof req.body === 'object' ? req.body : {};
   const name = String(body.pilotName || body.name || 'PILOT')
     .trim()
@@ -258,6 +297,31 @@ app.post('/api/ranking', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    // Serialize score writes with history cleanup. This prevents cleanup from
+    // deleting a run after its duplicate check but before its aggregate update.
+    await client.query('SELECT pg_advisory_xact_lock($1)', [CLEANUP_LOCK_KEY]);
+
+    const tombstone = await client.query(
+      `SELECT player_id
+       FROM ranking_run_tombstones
+       WHERE run_id = $1 AND expires_at > CURRENT_TIMESTAMP`,
+      [runId]
+    );
+    if (tombstone.rowCount) {
+      const existing = await client.query(
+        `SELECT player_id, name, pilot_name, itch_user_id, itch_username,
+                cumulative_score::float8 AS cumulative_score,
+                total_score::float8 AS total_score, stage, runs, cleared_runs, updated_at
+         FROM ranking_players WHERE player_id = $1`,
+        [tombstone.rows[0].player_id]
+      );
+      await client.query('COMMIT');
+      return res.status(200).json({
+        ok: true,
+        duplicate: true,
+        entry: existing.rowCount ? entry(existing.rows[0]) : null
+      });
+    }
 
     const inserted = await client.query(
       `INSERT INTO ranking_runs (run_id, player_id, run_score, stage, cleared, ended_at)
@@ -375,6 +439,8 @@ async function start() {
     )
   `);
 
+  await ensureRetentionSchema(pool);
+
   // One-time migration: preserve scores already submitted by the previous
   // version by grouping them under a deterministic legacy player identity.
   const migration = await pool.query(
@@ -484,8 +550,27 @@ async function start() {
     console.log('Rebuilt ranking totals as stage multiplied by cumulative score.');
   }
 
+  // Cleanup is deliberately best-effort at startup. A transient database
+  // problem must not prevent the API from serving rankings, and the next daily
+  // attempt can retry the same transaction safely.
+  try {
+    const cleanupResult = await cleanupHistory(pool);
+    console.log('History cleanup completed:', JSON.stringify(cleanupResult));
+  } catch (error) {
+    console.error('Initial history cleanup failed:', error.message);
+  }
+
   app.listen(port, '0.0.0.0', () => {
     console.log(`Crazy Combat ranking server listening on port ${port}`);
+    const cleanupTimer = setInterval(async () => {
+      try {
+        const cleanupResult = await cleanupHistory(pool);
+        console.log('Scheduled history cleanup completed:', JSON.stringify(cleanupResult));
+      } catch (error) {
+        console.error('Scheduled history cleanup failed:', error.message);
+      }
+    }, 24 * 60 * 60 * 1000);
+    cleanupTimer.unref?.();
   });
 }
 

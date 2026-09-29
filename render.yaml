@@ -11,6 +11,18 @@ services:
         value: production
       - key: DATABASE_URL
         sync: false
+      - key: DB_POOL_MAX
+        value: "5"
+      - key: DB_CONNECTION_TIMEOUT_MS
+        value: "10000"
+      - key: DB_IDLE_TIMEOUT_MS
+        value: "10000"
+      - key: RANKING_WRITES_ENABLED
+        value: "true"
+      - key: HISTORY_RETENTION_MONTHS
+        value: "1"
+      - key: RUN_TOMBSTONE_RETENTION_DAYS
+        value: "90"
       - key: CORS_ORIGINS
         value: https://luckycloud21.itch.io,https://html-classic.itch.zone,https://html.itch.zone
       - key: ITCH_CLIENT_ID

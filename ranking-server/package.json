@@ -5,7 +5,9 @@
   "description": "HTTPS global leaderboard API for Crazy Combat",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "db:inspect": "node inspect-db.js",
+    "db:cleanup": "node cleanup-cli.js"
   },
   "engines": {
     "node": ">=20"
